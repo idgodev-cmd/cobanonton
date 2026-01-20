@@ -1,18 +1,53 @@
-import React, { useState, useEffect } from 'react';
-import { Play, Search, Home, Trophy, ChevronLeft, Star, Info, X, Film, AlertCircle, Bug, SkipForward, SkipBack, Zap, Flame, ChevronDown, PlayCircle, Tv, Download, History, Trash2, Library, Eye, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Play, Search, Home, Trophy, ChevronLeft, Star, Info, X, Film, AlertCircle, Bug, SkipForward, SkipBack, Zap, Flame, ChevronDown, PlayCircle, Tv, Download, History, Trash2, Library, Eye, RefreshCw, Heart, Moon, Clock, FastForward, Rewind } from 'lucide-react';
+
+// --- ERROR BOUNDARY COMPONENT ---
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error("UI Error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-[#0E0E10] text-white flex flex-col items-center justify-center p-6 text-center">
+          <AlertCircle size={48} className="text-red-500 mb-4" />
+          <h2 className="text-xl font-bold mb-2">Terjadi Kesalahan Tampilan</h2>
+          <p className="text-gray-400 mb-6 text-sm">Silakan muat ulang halaman.</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="bg-white text-black px-6 py-2 rounded-full font-bold hover:bg-gray-200"
+          >
+            Muat Ulang
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 // --- API CONSTANTS ---
 const API_BASE = "https://dramabos.asia/api/dramabox/api";
 
 // --- THEME CONFIG (Dark Cinema Minimal) ---
 const THEME = {
-  bg: "bg-[#0E0E10]",       // Background Utama
-  surface: "bg-[#16161A]",  // Card/Surface
-  border: "border-[#242428]", // Border Halus
-  textMain: "text-white",   // Teks Utama
-  textSec: "text-[#A1A1AA]", // Teks Sekunder
-  accent: "text-[#E50914]",  // Merah Cinema (Text)
-  accentBg: "bg-[#E50914]",  // Merah Cinema (Bg)
+  bg: "bg-[#0E0E10]",
+  surface: "bg-[#16161A]",
+  border: "border-[#242428]",
+  textMain: "text-white",
+  textSec: "text-[#A1A1AA]",
+  accent: "text-[#E50914]",
+  accentBg: "bg-[#E50914]",
 };
 
 // --- CATEGORY LIST ---
@@ -33,47 +68,82 @@ const Skeleton = ({ className }) => (
   <div className={`animate-pulse bg-[#242428] rounded-lg ${className}`}></div>
 );
 
-// Modern Cinema Card
-const DramaCard = ({ drama, onClick, className = "", aspect = "aspect-[2/3]" }) => (
-  <div 
-    onClick={() => onClick(drama)}
-    className={`relative group cursor-pointer overflow-hidden rounded-lg ${THEME.surface} border border-transparent hover:border-[#333] transition-all ${className}`}
-  >
-    <div className={`relative w-full h-full ${aspect}`}>
-      <img 
-        src={drama.cover || drama.imageUrl || "https://via.placeholder.com/300x450?text=No+Image"} 
-        alt={drama.title || drama.bookName}
-        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 opacity-90 group-hover:opacity-100"
-        loading="lazy"
-        onError={(e) => e.target.src = "https://via.placeholder.com/300x450?text=Error"}
-      />
-      {/* Cinematic Gradient Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-t from-[#0E0E10] via-transparent to-transparent opacity-80"></div>
-      
-      {/* Minimalist Info */}
-      <div className="absolute bottom-0 left-0 w-full p-3">
-         <h3 className={`text-white text-[11px] font-bold leading-tight line-clamp-1 mb-1 group-hover:${THEME.accent} transition-colors`}>
-          {drama.title || drama.bookName}
-         </h3>
-         <div className="flex items-center gap-2 text-[10px] text-[#A1A1AA]">
-            <span className={`${THEME.accentBg} text-white px-1 py-[1px] rounded-[2px] text-[8px] font-bold tracking-wider`}>HD</span>
-            <span className="truncate">{drama.category || "Drama"}</span>
-         </div>
-      </div>
+// Modern Cinema Card with Progress & Watchlist
+const DramaCard = ({ drama, onClick, className = "", aspect = "aspect-[2/3]", progress, onRemove }) => {
+  // Safety checks for props to prevent "Objects are not valid as a React child" error
+  const title = typeof drama.title === 'string' ? drama.title : (drama.bookName || "Judul Tidak Diketahui");
+  const category = typeof drama.category === 'string' ? drama.category : "Drama";
+  const score = typeof drama.score === 'number' || typeof drama.score === 'string' ? drama.score : null;
 
-      {/* Score Badge */}
-      {drama.score && (
-        <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md text-white text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1 border border-white/5">
-          <Star size={8} className="text-yellow-500" fill="currentColor" /> {drama.score}
+  return (
+    <div 
+      onClick={() => onClick(drama)}
+      className={`relative group cursor-pointer overflow-hidden rounded-lg ${THEME.surface} border border-transparent hover:border-[#333] transition-all ${className}`}
+    >
+      <div className={`relative w-full h-full ${aspect}`}>
+        <img 
+          src={drama.cover || drama.imageUrl || "https://via.placeholder.com/300x450?text=No+Image"} 
+          alt={title}
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 opacity-90 group-hover:opacity-100"
+          loading="lazy"
+          onError={(e) => e.target.src = "https://via.placeholder.com/300x450?text=Error"}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0E0E10] via-transparent to-transparent opacity-80"></div>
+        
+        {/* Progress Bar (Last Seen) */}
+        {progress && progress.duration > 0 && (
+          <div className="absolute bottom-0 left-0 w-full h-1 bg-gray-800">
+            <div 
+              className="h-full bg-red-600" 
+              style={{ width: `${Math.min((progress.time / progress.duration) * 100, 100)}%` }}
+            ></div>
+          </div>
+        )}
+
+        {/* Info Overlay */}
+        <div className={`absolute bottom-0 left-0 w-full p-3 ${progress ? 'mb-1' : ''}`}>
+           <h3 className={`text-white text-[11px] font-bold leading-tight line-clamp-1 mb-1 group-hover:${THEME.accent} transition-colors`}>
+            {title}
+           </h3>
+           <div className="flex items-center gap-2 text-[10px] text-[#A1A1AA]">
+              {progress ? (
+                 <span className="text-[9px] text-red-400 font-medium">Lanjut Eps {progress.episodeIdx + 1}</span>
+              ) : (
+                 <>
+                   <span className={`${THEME.accentBg} text-white px-1 py-[1px] rounded-[2px] text-[8px] font-bold tracking-wider`}>HD</span>
+                   <span className="truncate">{category}</span>
+                 </>
+              )}
+           </div>
         </div>
-      )}
-    </div>
-  </div>
-);
 
-// 3. Main App Component
-export default function App() {
+        {/* Score Badge */}
+        {score && (
+          <div className="absolute top-2 right-2 flex flex-col gap-1 items-end">
+            <div className="bg-black/60 backdrop-blur-md text-white text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1 border border-white/5">
+              <Star size={8} className="text-yellow-500" fill="currentColor" /> {score}
+            </div>
+          </div>
+        )}
+        
+        {/* Remove Button (For Watchlist/History) */}
+        {onRemove && (
+          <button 
+            onClick={(e) => { e.stopPropagation(); onRemove(); }}
+            className="absolute top-2 left-2 bg-black/60 p-1.5 rounded-full text-white/70 hover:text-red-500 hover:bg-white/10 transition-colors"
+          >
+            <Trash2 size={12} />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// 3. Main App Component Logic
+function DramaStreamApp() {
   const [activeTab, setActiveTab] = useState('home');
+  const [subTab, setSubTab] = useState('history'); // 'history' or 'watchlist'
   const [selectedCategory, setSelectedCategory] = useState("Semua");
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [selectedDrama, setSelectedDrama] = useState(null);
@@ -82,17 +152,32 @@ export default function App() {
   const [error, setError] = useState(null);
   const [scrolled, setScrolled] = useState(false);
 
-  // History State
-  const [history, setHistory] = useState(() => {
-    const saved = localStorage.getItem('cobanonton_history');
-    return saved ? JSON.parse(saved) : [];
-  });
+  // --- PERSISTED STATE HELPER ---
+  const getPersistedState = (key, defaultValue) => {
+    try {
+      const saved = localStorage.getItem(key);
+      return saved ? JSON.parse(saved) : defaultValue;
+    } catch (e) {
+      console.error(`Error parsing ${key} from localStorage`, e);
+      return defaultValue;
+    }
+  };
 
-  // Watched Episodes State
-  const [watchedEpisodes, setWatchedEpisodes] = useState(() => {
-    const saved = localStorage.getItem('cobanonton_watched');
-    return saved ? JSON.parse(saved) : {}; 
-  });
+  const [history, setHistory] = useState(() => getPersistedState('cobanonton_history', []));
+  const [watchlist, setWatchlist] = useState(() => getPersistedState('cobanonton_watchlist', []));
+  const [watchedEpisodes, setWatchedEpisodes] = useState(() => getPersistedState('cobanonton_watched', {}));
+  const [playbackProgress, setPlaybackProgress] = useState(() => getPersistedState('cobanonton_progress', {}));
+
+  // --- PLAYER STATE ---
+  const [chapters, setChapters] = useState([]);
+  const [currentChapter, setCurrentChapter] = useState(null);
+  const [videoUrl, setVideoUrl] = useState(null);
+  const [dramaDetail, setDramaDetail] = useState(null);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const [isLightsOff, setIsLightsOff] = useState(false);
+  const [sleepTimer, setSleepTimer] = useState(null); // minutes remaining
+  const [showControls, setShowControls] = useState(true);
+  const videoRef = useRef(null);
 
   // PWA State
   const [deferredPrompt, setDeferredPrompt] = useState(null);
@@ -105,34 +190,26 @@ export default function App() {
   const [searchResults, setSearchResults] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   
-  // Detail & Player States
-  const [dramaDetail, setDramaDetail] = useState(null);
-  const [chapters, setChapters] = useState([]);
-  const [currentChapter, setCurrentChapter] = useState(null);
-  const [videoUrl, setVideoUrl] = useState(null);
-
   const heroDrama = homeData.length > 0 ? homeData[0] : null;
 
-  // --- EFFECT: Inject Meta Tags & Scroll Listener ---
+  // --- EFFECT: System Setup ---
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener('scroll', handleScroll);
 
+    // Meta Tags
     const head = document.head;
-    let metaTheme = document.querySelector('meta[name="theme-color"]');
-    if (!metaTheme) {
-      metaTheme = document.createElement('meta');
-      metaTheme.name = "theme-color";
-      head.appendChild(metaTheme);
+    if (!document.querySelector('meta[name="theme-color"]')) {
+      const meta = document.createElement('meta');
+      meta.name = "theme-color";
+      meta.content = "#0E0E10";
+      head.appendChild(meta);
     }
-    metaTheme.content = "#0E0E10";
-
-    let linkManifest = document.querySelector('link[rel="manifest"]');
-    if (!linkManifest) {
-      linkManifest = document.createElement('link');
-      linkManifest.rel = "manifest";
-      linkManifest.href = "/manifest.json";
-      head.appendChild(linkManifest);
+    if (!document.querySelector('link[rel="manifest"]')) {
+      const link = document.createElement('link');
+      link.rel = "manifest";
+      link.href = "/manifest.json";
+      head.appendChild(link);
     }
 
     return () => window.removeEventListener('scroll', handleScroll);
@@ -140,21 +217,13 @@ export default function App() {
 
   // --- PWA LOGIC ---
   useEffect(() => {
-    const handleBeforeInstallPrompt = (e) => {
+    const handleBeforeInstall = (e) => {
       e.preventDefault();
       setDeferredPrompt(e);
       if (!localStorage.getItem('pwa_dismissed')) setShowInstallBanner(true);
     };
-    const handleAppInstalled = () => {
-      setShowInstallBanner(false);
-      setDeferredPrompt(null);
-    };
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    window.addEventListener('appinstalled', handleAppInstalled);
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      window.removeEventListener('appinstalled', handleAppInstalled);
-    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
   }, []);
 
   const handleInstallClick = async () => {
@@ -167,12 +236,63 @@ export default function App() {
     }
   };
 
-  // --- HISTORY & WATCHED LOGIC ---
-  const addToHistory = (drama) => {
+  // --- DATA MANAGEMENT LOGIC ---
+  const saveToHistory = (drama) => {
     if (!drama) return;
-    const newHistory = [drama, ...history.filter(h => (h.bookId || h.id) !== (drama.bookId || drama.id))].slice(0, 50);
-    setHistory(newHistory);
-    localStorage.setItem('cobanonton_history', JSON.stringify(newHistory));
+    const cleanDrama = { 
+      id: drama.bookId || drama.id, 
+      bookId: drama.bookId || drama.id,
+      title: drama.title || drama.bookName, 
+      cover: drama.cover || drama.imageUrl,
+      category: drama.category,
+      score: drama.score
+    };
+    
+    setHistory(prev => {
+      const safePrev = Array.isArray(prev) ? prev : [];
+      const filtered = safePrev.filter(h => (h.bookId || h.id) !== (cleanDrama.bookId || cleanDrama.id));
+      const updated = [cleanDrama, ...filtered].slice(0, 50);
+      localStorage.setItem('cobanonton_history', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const toggleWatchlist = (drama) => {
+    const id = drama.bookId || drama.id;
+    setWatchlist(prev => {
+      const safePrev = Array.isArray(prev) ? prev : [];
+      const exists = safePrev.find(w => (w.bookId || w.id) === id);
+      let updated;
+      if (exists) {
+        updated = safePrev.filter(w => (w.bookId || w.id) !== id);
+      } else {
+        const cleanDrama = { 
+          id: id, bookId: id,
+          title: drama.title || drama.bookName, 
+          cover: drama.cover || drama.imageUrl,
+          category: drama.category, score: drama.score
+        };
+        updated = [cleanDrama, ...safePrev];
+      }
+      localStorage.setItem('cobanonton_watchlist', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const updateProgress = (dramaId, episodeIdx, time, duration) => {
+    setPlaybackProgress(prev => {
+      const updated = {
+        ...prev,
+        [dramaId]: {
+          episodeIdx,
+          time,
+          duration,
+          lastUpdated: Date.now()
+        }
+      };
+      localStorage.setItem('cobanonton_progress', JSON.stringify(updated));
+      return updated;
+    });
   };
 
   const markEpisodeWatched = (dramaId, episodeIndex) => {
@@ -192,15 +312,35 @@ export default function App() {
     }
   };
 
+  // --- SLEEP TIMER LOGIC ---
+  useEffect(() => {
+    if (sleepTimer !== null) {
+      if (sleepTimer <= 0) {
+        if (videoRef.current) {
+          videoRef.current.pause();
+          setSleepTimer(null);
+          alert("Sleep Timer: Video dihentikan.");
+        }
+      } else {
+        const id = setTimeout(() => setSleepTimer(prev => prev - 1), 60000); // Reduce every minute
+        return () => clearTimeout(id);
+      }
+    }
+  }, [sleepTimer]);
+
+  const toggleSleepTimer = () => {
+    if (sleepTimer) setSleepTimer(null);
+    else setSleepTimer(30); // Start with 30 mins
+  };
+
   // --- FETCHING LOGIC ---
   const fetchData = async (endpoint) => {
     try {
       const res = await fetch(`${API_BASE}${endpoint}`);
-      if (!res.ok) throw new Error("Gagal mengambil data");
-      const json = await res.json();
-      return json;
+      if (!res.ok) throw new Error("API Error");
+      return await res.json();
     } catch (err) {
-      console.error("Fetch Error:", err);
+      console.error(err);
       throw err;
     }
   };
@@ -215,8 +355,8 @@ export default function App() {
           fetchData('/foryou/1?lang=in'),
           fetchData('/new/1?lang=in')
         ]);
-        setHomeData(foryou.data?.list || foryou.data || []);
-        setNewData(fresh.data?.list || fresh.data || []);
+        setHomeData(foryou.data?.list || []);
+        setNewData(fresh.data?.list || []);
       } catch (err) {
         setError("Gagal memuat data. Cek koneksi internet.");
       } finally {
@@ -232,8 +372,8 @@ export default function App() {
         setLoading(true);
         try {
           const res = await fetchData('/rank/1?lang=in');
-          setRankData(res.data?.list || res.data || []);
-        } catch (err) { console.error(err); } finally { setLoading(false); }
+          setRankData(res.data?.list || []);
+        } catch(e){} finally { setLoading(false); }
       }
     };
     if (activeTab === 'rank') loadRank();
@@ -246,7 +386,7 @@ export default function App() {
     setSearchQuery(query); 
     try {
       const res = await fetchData(`/search/${encodeURIComponent(query)}/1?lang=in&pageSize=20`);
-      setSearchResults(res.data?.list || res.data || []);
+      setSearchResults(res.data?.list || []);
     } catch (err) { setError("Gagal mencari drama."); } finally { setLoading(false); }
   };
 
@@ -270,7 +410,7 @@ export default function App() {
 
   // Open Detail
   const openDrama = async (drama) => {
-    addToHistory(drama);
+    saveToHistory(drama);
     setSelectedDrama(drama);
     setCurrentView('detail');
     setLoading(true);
@@ -285,7 +425,7 @@ export default function App() {
         fetchData(`/chapters/${id}?lang=in`)
       ]);
       setDramaDetail(detailRes.data);
-      setChapters(chaptersRes.data?.chapterList || chaptersRes.data || []);
+      setChapters(chaptersRes.data?.chapterList || []);
     } catch (err) {
       setError("Gagal memuat detail.");
     } finally {
@@ -298,7 +438,7 @@ export default function App() {
     if (!selectedDrama) return;
     const dramaId = selectedDrama.bookId || selectedDrama.id;
     
-    addToHistory(selectedDrama); 
+    saveToHistory(selectedDrama); 
     markEpisodeWatched(dramaId, index);
 
     setCurrentChapter(chapter);
@@ -306,8 +446,10 @@ export default function App() {
     setLoading(true);
     setVideoUrl(null);
     setError(null);
+    setPlaybackSpeed(1); // Reset speed
+    setIsLightsOff(false); // Reset lights
 
-    const bookId = selectedDrama.bookId || selectedDrama.id;
+    const bookId = dramaId;
     const chapterIdx = typeof index === 'number' ? index + 1 : chapter.index || 1; 
 
     try {
@@ -331,7 +473,34 @@ export default function App() {
     }
   };
 
-  // --- RENDER HELPERS ---
+  // --- PLAYER CONTROLLER ---
+  const handleDoubleTap = (side) => {
+    if (videoRef.current) {
+      const skipAmount = 10;
+      videoRef.current.currentTime += side === 'right' ? skipAmount : -skipAmount;
+    }
+  };
+
+  const handleTimeUpdate = () => {
+    if (videoRef.current && selectedDrama) {
+      const dramaId = selectedDrama.bookId || selectedDrama.id;
+      const currentIdx = chapters.findIndex(c => c === currentChapter);
+      updateProgress(dramaId, currentIdx, videoRef.current.currentTime, videoRef.current.duration);
+    }
+  };
+
+  const handleVideoLoaded = () => {
+    if (videoRef.current && selectedDrama) {
+      const dramaId = selectedDrama.bookId || selectedDrama.id;
+      const saved = playbackProgress[dramaId];
+      const currentIdx = chapters.findIndex(c => c === currentChapter);
+      if (saved && saved.episodeIdx === currentIdx && saved.time > 5) {
+        videoRef.current.currentTime = saved.time;
+      }
+    }
+  };
+
+  // --- UI RENDER ---
 
   if (currentView === 'player') {
     const currentIdx = chapters.findIndex(c => c === currentChapter);
@@ -339,64 +508,120 @@ export default function App() {
     const hasPrev = currentIdx > 0;
 
     return (
-      <div className="fixed inset-0 bg-black z-[999] flex flex-col font-sans">
-        {/* Cinematic Player Header */}
-        <div className="absolute top-0 w-full p-4 flex items-center justify-between bg-gradient-to-b from-black/90 to-transparent z-20 pointer-events-none">
+      <div className={`fixed inset-0 z-[999] bg-black font-sans`}> {/* Use fixed/absolute layout */}
+        
+        {/* Lights Off Overlay */}
+        {isLightsOff && <div className="absolute inset-0 bg-black z-40 pointer-events-none"></div>}
+
+        {/* Header (Absolute Top) */}
+        <div className={`absolute top-0 left-0 w-full p-4 flex items-center justify-between bg-gradient-to-b from-black/90 to-transparent z-50 transition-opacity duration-300 ${!showControls && 'opacity-0'}`}>
           <button 
             onClick={() => setCurrentView('detail')}
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 backdrop-blur-md text-white hover:bg-white/20 transition-all pointer-events-auto"
+            className="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 backdrop-blur-md text-white hover:bg-white/20"
           >
             <ChevronLeft size={24} />
           </button>
-          <div className="text-white/80 text-sm font-bold tracking-wider drop-shadow-md">
-             EPISODE {currentIdx + 1}
+          <div className="text-white/90 text-sm font-bold tracking-wider drop-shadow-md flex flex-col items-center">
+             <span>CH. {currentIdx + 1}</span>
+             {sleepTimer && <span className="text-[10px] text-red-400 flex items-center gap-1"><Clock size={10}/> {sleepTimer}m</span>}
           </div>
-          <div className="w-10"></div>
+          <div className="flex gap-3">
+             <button 
+               onClick={toggleSleepTimer}
+               className={`w-10 h-10 rounded-full flex items-center justify-center backdrop-blur-md transition-colors ${sleepTimer ? 'bg-red-600 text-white' : 'bg-white/10 text-white'}`}
+             >
+                <Moon size={18} />
+             </button>
+             <button 
+               onClick={() => setIsLightsOff(!isLightsOff)}
+               className={`w-10 h-10 rounded-full flex items-center justify-center backdrop-blur-md transition-colors ${isLightsOff ? 'bg-yellow-500 text-black' : 'bg-white/10 text-white'}`}
+             >
+                <Zap size={18} fill={isLightsOff ? "currentColor" : "none"} />
+             </button>
+          </div>
         </div>
 
-        {/* Video Area */}
-        <div className="flex-1 flex items-center justify-center bg-black relative">
+        {/* Video Container (Absolute Fullscreen) */}
+        <div 
+          className="absolute inset-0 flex items-center justify-center bg-black z-0"
+          onClick={() => setShowControls(!showControls)}
+        >
+          {/* Double Tap Zones */}
+          <div className="absolute left-0 top-0 bottom-0 w-[30%] z-20" onDoubleClick={(e) => { e.stopPropagation(); handleDoubleTap('left'); }}></div>
+          <div className="absolute right-0 top-0 bottom-0 w-[30%] z-20" onDoubleClick={(e) => { e.stopPropagation(); handleDoubleTap('right'); }}></div>
+
           {loading ? (
-             <div className="flex flex-col items-center gap-4">
+             <div className="flex flex-col items-center gap-4 relative z-30">
                <div className={`w-12 h-12 border-4 border-[#242428] border-t-[${THEME.accentBg}] rounded-full animate-spin border-t-red-600`}></div>
                <p className="text-[#A1A1AA] text-xs font-bold tracking-[0.2em]">MEMUAT...</p>
              </div>
           ) : videoUrl ? (
             <video 
+              ref={videoRef}
               src={videoUrl} 
-              controls 
+              controls={false}
+              controlsList="nodownload"
               autoPlay 
               playsInline
               webkit-playsinline="true"
               className="w-full h-full max-h-screen object-contain"
+              onTimeUpdate={handleTimeUpdate}
+              onLoadedMetadata={handleVideoLoaded}
               onError={() => setError("Format video tidak didukung.")}
+              onRateChange={(e) => setPlaybackSpeed(e.target.playbackRate)}
             />
           ) : (
-            <div className="text-center p-6">
+            <div className="text-center p-6 relative z-30">
               <AlertCircle className="mx-auto mb-3 text-red-600" size={32} />
-              <p className="text-[#A1A1AA] text-sm mb-4">Video tidak tersedia saat ini.</p>
+              <p className="text-[#A1A1AA] text-sm mb-4">Video tidak tersedia.</p>
               <button onClick={() => setCurrentView('detail')} className="px-6 py-2 bg-[#242428] rounded-full text-white text-xs font-bold hover:bg-[#333]">KEMBALI</button>
             </div>
           )}
         </div>
 
-        {/* Controls - Fixed at Bottom with Z-Index */}
-        <div className="bg-[#0E0E10] border-t border-[#242428] p-4 pb-8 safe-area-pb z-50 relative w-full">
-            <div className="flex items-center justify-between max-w-md mx-auto gap-4">
+        {/* Controls (Absolute Bottom) */}
+        <div className={`absolute bottom-0 left-0 w-full bg-gradient-to-t from-black via-black/80 to-transparent p-4 pb-10 z-50 transition-transform duration-300 ${!showControls ? 'translate-y-full' : 'translate-y-0'}`}>
+            {videoRef.current && (
+              <div className="flex items-center justify-between text-white mb-6 px-2">
+                 <div className="flex gap-4">
+                    <button onClick={() => { if(videoRef.current.paused) videoRef.current.play(); else videoRef.current.pause(); }}>
+                       {videoRef.current?.paused ? <Play fill="currentColor" size={28}/> : <div className="w-6 h-6 bg-white rounded-sm"></div>}
+                    </button>
+                    <button 
+                      onClick={() => {
+                        const speeds = [1, 1.25, 1.5, 2];
+                        const nextIdx = (speeds.indexOf(playbackSpeed) + 1) % speeds.length;
+                        const nextSpeed = speeds[nextIdx];
+                        videoRef.current.playbackRate = nextSpeed;
+                        setPlaybackSpeed(nextSpeed);
+                      }}
+                      className="text-xs font-bold border border-white/30 px-2.5 py-1 rounded hover:bg-white/20"
+                    >
+                      {playbackSpeed}x
+                    </button>
+                 </div>
+                 <div className="flex gap-6 text-xs text-gray-400 font-medium">
+                    <span className="flex items-center gap-1"><Rewind size={14}/> -10s</span>
+                    <span className="flex items-center gap-1">+10s <FastForward size={14}/></span>
+                 </div>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between gap-4">
                <button 
                  disabled={!hasPrev}
                  onClick={() => hasPrev && playEpisode(chapters[currentIdx - 1], currentIdx - 1)}
-                 className={`flex-1 py-3 rounded-lg flex items-center justify-center gap-2 text-sm font-bold transition-all ${!hasPrev ? 'bg-[#16161A] text-[#333] cursor-not-allowed' : 'bg-[#16161A] text-white hover:bg-[#242428]'}`}
+                 className={`flex-1 py-3 rounded-lg flex items-center justify-center gap-2 text-sm font-bold transition-all ${!hasPrev ? 'bg-white/10 text-gray-500 cursor-not-allowed' : 'bg-white/20 text-white hover:bg-white/30 backdrop-blur-sm'}`}
                >
-                 <SkipBack size={16} /> Prev
+                 <SkipBack size={18} /> Prev
                </button>
                
                <button 
                  disabled={!hasNext}
                  onClick={() => hasNext && playEpisode(chapters[currentIdx + 1], currentIdx + 1)}
-                 className={`flex-1 py-3 rounded-lg flex items-center justify-center gap-2 text-sm font-bold transition-all ${!hasNext ? 'bg-[#16161A] text-[#333] cursor-not-allowed' : `${THEME.accentBg} text-white hover:opacity-90 shadow-lg shadow-red-900/20`}`}
+                 className={`flex-1 py-3 rounded-lg flex items-center justify-center gap-2 text-sm font-bold transition-all ${!hasNext ? 'bg-white/10 text-gray-500 cursor-not-allowed' : 'bg-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-900/30'}`}
                >
-                 Next Eps <SkipForward size={16} />
+                 Next <SkipForward size={18} />
                </button>
             </div>
         </div>
@@ -407,6 +632,9 @@ export default function App() {
   if (currentView === 'detail') {
     const dramaId = dramaDetail?.bookId || dramaDetail?.id || selectedDrama?.bookId || selectedDrama?.id;
     const watchedList = watchedEpisodes[dramaId] || [];
+    const isSaved = watchlist.some(w => (w.bookId || w.id) === dramaId);
+    const progress = playbackProgress[dramaId];
+    const resumeIdx = progress ? progress.episodeIdx : 0;
 
     return (
       <div className={`min-h-screen ${THEME.bg} text-white pb-20 font-sans`}>
@@ -436,15 +664,22 @@ export default function App() {
              <span>{dramaDetail?.category || "Drama"}</span>
              <span>•</span>
              <span className="border border-[#333] px-1 rounded text-[10px]">HD</span>
-             <span className="flex items-center gap-1 text-green-400"><RefreshCw size={14}/> Update</span>
           </div>
 
-          <button 
-            onClick={() => chapters.length > 0 && playEpisode(chapters[0], 0)}
-            className={`w-full py-4 bg-white text-black font-bold rounded flex items-center justify-center gap-2 mb-6 hover:bg-gray-200 transition-colors shadow-lg`}
-          >
-            <Play fill="black" size={22} /> Putar
-          </button>
+          <div className="flex gap-3 mb-6">
+            <button 
+              onClick={() => chapters.length > 0 && playEpisode(chapters[resumeIdx], resumeIdx)}
+              className={`flex-1 py-4 bg-white text-black font-bold rounded flex items-center justify-center gap-2 hover:bg-gray-200 transition-colors shadow-lg`}
+            >
+              <Play fill="black" size={20} /> {progress ? `Lanjut Eps ${resumeIdx + 1}` : 'Putar'}
+            </button>
+            <button 
+              onClick={() => toggleWatchlist(selectedDrama)}
+              className="px-4 bg-[#16161A] border border-[#333] rounded flex items-center justify-center hover:bg-[#242428] transition-colors"
+            >
+              <Heart size={24} fill={isSaved ? "#E50914" : "none"} className={isSaved ? "text-[#E50914]" : "text-white"} />
+            </button>
+          </div>
 
           <p className="text-[#A1A1AA] text-sm leading-relaxed mb-8 line-clamp-4">
             {dramaDetail?.introduction || dramaDetail?.desc || "Saksikan drama seru ini dengan kualitas terbaik hanya di COBANONTON."}
@@ -469,11 +704,11 @@ export default function App() {
                       onClick={() => playEpisode(ch, idx)}
                       className={`
                         relative bg-[#16161A] hover:bg-[#242428] border border-[#242428] rounded py-3 text-xs font-bold transition-colors
-                        ${isWatched ? 'text-[#A1A1AA]' : 'text-white'}
+                        ${isWatched ? 'text-[#555]' : 'text-white'}
+                        ${currentChapter === ch ? 'border-red-600 text-red-500' : ''}
                       `}
                     >
                       {idx + 1}
-                      {/* TITIK MERAH untuk Episode Ditonton */}
                       {isWatched && (
                         <div className="absolute top-1 right-1 w-1.5 h-1.5 bg-red-600 rounded-full shadow-sm"></div>
                       )}
@@ -492,28 +727,21 @@ export default function App() {
   return (
     <div className={`min-h-screen ${THEME.bg} ${THEME.textMain} pb-24 font-sans relative`}>
       
-      {/* HEADER NAVBAR (With Text Links) */}
       <div className={`fixed top-0 left-0 w-full z-40 transition-all duration-500 px-4 py-3 flex items-center justify-between ${scrolled ? 'bg-[#0E0E10]/95 backdrop-blur-md border-b border-[#242428]' : 'bg-gradient-to-b from-black/90 to-transparent'}`}>
         <div className="flex items-center gap-6">
-           <div className="cursor-pointer group mr-2" onClick={() => setActiveTab('home')}>
+           <div className="cursor-pointer block" onClick={() => setActiveTab('home')}>
               <img 
                 src="/logo.png" 
                 alt="COBANONTON" 
-                className="h-8 w-auto object-contain transition-transform group-hover:scale-105 drop-shadow-md" 
-                onError={(e) => {
-                  e.target.style.display = 'none';
-                  e.target.nextSibling.style.display = 'flex';
-                }}
+                className="h-8 md:h-10 w-auto object-contain drop-shadow-lg" 
+                onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
               />
               <div className="hidden items-center gap-1">
                 <Tv size={22} className={THEME.accent} strokeWidth={2.5} />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-600 to-red-500 font-black text-lg tracking-tighter">
-                  COBANONTON
-                </span>
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-600 to-red-500 font-black text-lg tracking-tighter">COBANONTON</span>
               </div>
            </div>
            
-           {/* HEADER LINKS (Menu disebelah logo) */}
            <div className="hidden md:flex items-center gap-6 text-sm font-medium">
              <button onClick={() => {setActiveTab('home'); setSelectedCategory('Semua')}} className={`hover:text-white transition-colors ${activeTab === 'home' ? 'text-white font-bold' : 'text-[#A1A1AA]'}`}>Beranda</button>
              <button onClick={() => setActiveTab('search')} className={`hover:text-white transition-colors ${activeTab === 'search' ? 'text-white font-bold' : 'text-[#A1A1AA]'}`}>Search</button>
@@ -523,133 +751,70 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-3">
-           <button 
-             onClick={() => setIsCategoryOpen(true)}
-             className="text-xs font-bold text-white/80 hover:text-white border border-white/20 px-3 py-1.5 rounded-full backdrop-blur-sm transition-colors flex items-center gap-1"
-           >
-             Genre <ChevronDown size={10} />
-           </button>
-           
-           {/* Mobile Search Icon (Since text links are hidden on mobile) */}
-           <button onClick={() => setActiveTab('search')} className="md:hidden p-1 rounded-full hover:bg-white/10 transition-colors">
-             <Search size={22} className="text-white" />
-           </button>
+           <button onClick={() => setIsCategoryOpen(true)} className="text-xs font-bold text-white/80 hover:text-white border border-white/20 px-3 py-1.5 rounded-full backdrop-blur-sm transition-colors flex items-center gap-1">Genre <ChevronDown size={10} /></button>
+           <button onClick={() => setActiveTab('search')} className="md:hidden p-1 rounded-full hover:bg-white/10 transition-colors"><Search size={22} className="text-white" /></button>
         </div>
       </div>
 
-      {/* CATEGORY MODAL */}
       {isCategoryOpen && (
         <div className="fixed inset-0 z-[60] bg-[#0E0E10]/98 backdrop-blur-xl animate-in fade-in duration-200 flex flex-col pt-24 px-6">
-           <button 
-             onClick={() => setIsCategoryOpen(false)}
-             className="absolute top-6 right-6 p-2 bg-[#242428] rounded-full text-white hover:bg-[#333]"
-           >
-             <X size={24}/>
-           </button>
+           <button onClick={() => setIsCategoryOpen(false)} className="absolute top-6 right-6 p-2 bg-[#242428] rounded-full text-white hover:bg-[#333]"><X size={24}/></button>
            <h2 className="text-2xl font-black text-white mb-8 text-center">Pilih Genre</h2>
            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 overflow-y-auto pb-20 no-scrollbar">
              {CATEGORIES.map((cat, idx) => (
-               <button 
-                 key={idx}
-                 onClick={() => handleCategoryClick(cat)}
-                 className={`py-4 px-4 text-center text-sm font-medium rounded-lg transition-all ${selectedCategory === cat ? 'bg-[#E50914] text-white' : 'bg-[#16161A] text-[#A1A1AA] hover:bg-[#242428] hover:text-white'}`}
-               >
-                 {cat}
-               </button>
+               <button key={idx} onClick={() => handleCategoryClick(cat)} className={`py-4 px-4 text-center text-sm font-medium rounded-lg transition-all ${selectedCategory === cat ? 'bg-[#E50914] text-white' : 'bg-[#16161A] text-[#A1A1AA] hover:bg-[#242428] hover:text-white'}`}>{cat}</button>
              ))}
            </div>
         </div>
       )}
 
-      {/* PWA INSTALL BANNER */}
       {showInstallBanner && (
         <div className="fixed bottom-20 left-4 right-4 z-50 animate-in slide-in-from-bottom-4 duration-500">
           <div className="bg-[#16161A] border border-[#242428] rounded-lg p-4 shadow-2xl flex items-center justify-between gap-4">
              <div className="flex items-center gap-3">
-                <div className="bg-black/20 p-2 rounded-lg border border-white/5">
-                   <img src="/pwa-192x192.png" className="w-8 h-8 rounded-md" alt="App Icon" />
-                </div>
-                <div>
-                   <h4 className="text-white font-bold text-sm">Install App</h4>
-                   <p className="text-[#A1A1AA] text-xs">Akses lebih cepat & hemat kuota</p>
-                </div>
+                <div className="bg-black/20 p-2 rounded-lg border border-white/5"><img src="/pwa-192x192.png" className="w-8 h-8 rounded-md" alt="App Icon" /></div>
+                <div><h4 className="text-white font-bold text-sm">Install App</h4><p className="text-[#A1A1AA] text-xs">Akses lebih cepat & hemat kuota</p></div>
              </div>
-             <button 
-                onClick={handleInstallClick}
-                className="bg-white text-black px-4 py-2 rounded text-xs font-bold hover:bg-gray-200 transition-colors"
-             >
-                Install
-             </button>
+             <button onClick={handleInstallClick} className="bg-white text-black px-4 py-2 rounded text-xs font-bold hover:bg-gray-200 transition-colors">Install</button>
           </div>
         </div>
       )}
 
-      {/* MAIN CONTENT AREA */}
       <div className="pb-10 pt-16">
         
-        {/* HOME TAB */}
         {activeTab === 'home' && (
           <>
-            {/* CINEMATIC HERO */}
             {heroDrama && !loading ? (
               <div className="relative w-full h-[70vh] mb-8 mt-[-64px]">
-                <img 
-                  src={heroDrama.cover || heroDrama.imageUrl} 
-                  className="w-full h-full object-cover animate-in fade-in duration-1000"
-                  alt="Hero"
-                />
+                <img src={heroDrama.cover || heroDrama.imageUrl} className="w-full h-full object-cover animate-in fade-in duration-1000" alt="Hero" />
                 <div className="absolute inset-0 bg-gradient-to-b from-[#0E0E10]/30 via-transparent to-[#0E0E10]"></div>
                 <div className="absolute inset-0 bg-gradient-to-t from-[#0E0E10] via-[#0E0E10]/60 to-transparent"></div>
-                
                 <div className="absolute bottom-0 left-0 w-full p-6 pb-12 flex flex-col items-center text-center z-10">
-                  <div className="mb-4 flex gap-2">
-                     <span className={`text-[9px] font-bold uppercase tracking-widest text-white/90 px-2 py-1 rounded bg-white/10 backdrop-blur`}>
-                       {heroDrama.category || "Trending"}
-                     </span>
-                  </div>
-                  <h1 className="text-4xl md:text-7xl font-black text-white mb-6 drop-shadow-2xl leading-none max-w-4xl tracking-tight">
-                    {heroDrama.title}
-                  </h1>
+                  <div className="mb-4 flex gap-2"><span className={`text-[9px] font-bold uppercase tracking-widest text-white/90 px-2 py-1 rounded bg-white/10 backdrop-blur`}>{heroDrama.category || "Trending"}</span></div>
+                  <h1 className="text-4xl md:text-7xl font-black text-white mb-6 drop-shadow-2xl leading-none max-w-4xl tracking-tight">{heroDrama.title}</h1>
                   <div className="flex gap-3 w-full max-w-sm">
-                     <button 
-                       onClick={() => openDrama(heroDrama)}
-                       className="flex-1 bg-white text-black py-3 rounded-[4px] font-bold flex items-center justify-center gap-2 hover:bg-gray-200 transition-all active:scale-95"
-                     >
-                       <Play fill="black" size={18} /> Putar
-                     </button>
-                     <button 
-                       onClick={() => openDrama(heroDrama)}
-                       className="flex-1 bg-[#242428]/80 backdrop-blur-md text-white py-3 rounded-[4px] font-bold flex items-center justify-center gap-2 hover:bg-[#333] transition-all active:scale-95"
-                     >
-                       <Info size={18} /> Info
-                     </button>
+                     <button onClick={() => openDrama(heroDrama)} className="flex-1 bg-white text-black py-3 rounded-[4px] font-bold flex items-center justify-center gap-2 hover:bg-gray-200 transition-all active:scale-95"><Play fill="black" size={18} /> Putar</button>
+                     <button onClick={() => openDrama(heroDrama)} className="flex-1 bg-[#242428]/80 backdrop-blur-md text-white py-3 rounded-[4px] font-bold flex items-center justify-center gap-2 hover:bg-[#333] transition-all active:scale-95"><Info size={18} /> Info</button>
                   </div>
                 </div>
               </div>
-            ) : (
-              <div className="h-[70vh] w-full bg-[#16161A] animate-pulse mb-8 mt-[-64px]"></div>
-            )}
+            ) : <div className="h-[70vh] w-full bg-[#16161A] animate-pulse mb-8 mt-[-64px]"></div>}
 
             <div className="px-5 space-y-10 -mt-6 relative z-10">
-              {/* HOT */}
               <section>
-                 <h2 className="text-sm font-bold text-white mb-3 flex items-center gap-2 uppercase tracking-wider">
-                    <Flame size={16} className={THEME.accent} fill="currentColor"/> Sedang Hangat
-                 </h2>
+                 <h2 className="text-sm font-bold text-white mb-3 flex items-center gap-2 uppercase tracking-wider"><Flame size={16} className={THEME.accent} fill="currentColor"/> Sedang Hangat</h2>
                  {loading && homeData.length === 0 ? (
-                    <div className="grid grid-cols-3 gap-2">
-                       <Skeleton className="h-40" /><Skeleton className="h-40" /><Skeleton className="h-40" />
-                    </div>
+                    <div className="grid grid-cols-3 gap-2"><Skeleton className="h-40" /><Skeleton className="h-40" /><Skeleton className="h-40" /></div>
                  ) : (
                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
-                      {homeData.slice(0, 9).map((drama, idx) => (
-                        <DramaCard key={idx} drama={drama} onClick={openDrama} />
-                      ))}
+                      {homeData.slice(0, 9).map((drama, idx) => {
+                        const id = drama.bookId || drama.id;
+                        const progress = playbackProgress[id];
+                        return <DramaCard key={idx} drama={drama} onClick={openDrama} progress={progress} />;
+                      })}
                    </div>
                  )}
               </section>
-
-              {/* NEW */}
               <section>
                  <h2 className="text-sm font-bold text-white mb-3 uppercase tracking-wider">Baru Ditambahkan</h2>
                  <div className="flex overflow-x-auto gap-3 pb-4 -mx-5 px-5 no-scrollbar">
@@ -662,69 +827,31 @@ export default function App() {
           </>
         )}
 
-        {/* SEARCH TAB */}
         {activeTab === 'search' && (
           <div className="p-5 min-h-[90vh]">
-            <div className="relative mb-8">
-              <input 
-                type="text" 
-                placeholder="Cari judul, genre..."
-                className="w-full bg-[#16161A] border-none rounded-sm py-4 pl-12 pr-4 text-white text-sm focus:ring-1 focus:ring-white/20 transition-all placeholder:text-[#555] font-medium"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                autoFocus
-              />
-              <Search className="absolute left-4 top-4 text-[#555]" size={20} />
-            </div>
-
-            <h2 className="text-sm font-bold mb-4 text-[#A1A1AA] uppercase tracking-wider">
-              {searchQuery ? `Hasil Pencarian` : "Jelajahi"}
-            </h2>
-
+            <form onSubmit={handleSearchSubmit} className="relative mb-8">
+              <input type="text" placeholder="Cari judul, genre..." className="w-full bg-[#16161A] border-none rounded-sm py-4 pl-12 pr-4 text-white text-sm focus:ring-1 focus:ring-white/20 transition-all placeholder:text-[#555] font-medium" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} autoFocus />
+              <button type="submit" className="absolute left-4 top-4 text-[#555]"><Search size={20} /></button>
+            </form>
+            <h2 className="text-sm font-bold mb-4 text-[#A1A1AA] uppercase tracking-wider">{searchQuery ? `Hasil Pencarian` : "Jelajahi"}</h2>
             <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-3">
-               {loading ? (
-                  [...Array(6)].map((_,i) => <Skeleton key={i} className="aspect-[2/3]" />)
-               ) : searchResults.length > 0 ? (
-                  searchResults.map((drama, idx) => (
-                    <DramaCard key={idx} drama={drama} onClick={openDrama} />
-                  ))
-               ) : (
-                 <div className="col-span-full py-20 text-center flex flex-col items-center justify-center opacity-30">
-                    <Film size={48} className="mb-4"/>
-                    <p className="text-sm">Tidak ada drama ditemukan.</p>
-                 </div>
-               )}
+               {loading ? [...Array(6)].map((_,i) => <Skeleton key={i} className="aspect-[2/3]" />) : searchResults.length > 0 ? searchResults.map((drama, idx) => <DramaCard key={idx} drama={drama} onClick={openDrama} />) : <div className="col-span-full py-20 text-center flex flex-col items-center justify-center opacity-30"><Film size={48} className="mb-4"/><p className="text-sm">Tidak ada drama ditemukan.</p></div>}
             </div>
           </div>
         )}
 
-        {/* RANK TAB */}
         {activeTab === 'rank' && (
           <div className="p-5 min-h-[90vh]">
             <h2 className="text-2xl font-black text-white mb-1 text-center">TOP 10</h2>
             <p className="text-center text-[10px] text-[#A1A1AA] mb-8 font-bold tracking-[0.2em] uppercase">Indonesia Hari Ini</p>
-            
             <div className="space-y-2 max-w-xl mx-auto">
               {rankData.map((drama, idx) => (
-                <div 
-                  key={idx} 
-                  onClick={() => openDrama(drama)}
-                  className="flex items-center gap-4 bg-[#16161A] hover:bg-[#242428] p-3 rounded-lg cursor-pointer transition-colors group border border-transparent hover:border-[#333]"
-                >
-                  <span className={`text-4xl font-black w-10 text-center ${idx < 3 ? THEME.accent : 'text-[#333]'} tracking-tighter`}>
-                    {idx + 1}
-                  </span>
-                  <img 
-                    src={drama.cover || drama.imageUrl} 
-                    className="w-16 h-20 object-cover rounded-sm"
-                    alt={drama.title}
-                  />
+                <div key={idx} onClick={() => openDrama(drama)} className="flex items-center gap-4 bg-[#16161A] hover:bg-[#242428] p-3 rounded-lg cursor-pointer transition-colors group border border-transparent hover:border-[#333]">
+                  <span className={`text-4xl font-black w-10 text-center ${idx < 3 ? THEME.accent : 'text-[#333]'} tracking-tighter`}>{idx + 1}</span>
+                  <img src={drama.cover || drama.imageUrl} className="w-16 h-20 object-cover rounded-sm" alt={drama.title} />
                   <div className="flex-1 min-w-0">
                     <h3 className="font-bold text-sm text-white truncate mb-1">{drama.title || drama.bookName}</h3>
-                    <div className="flex items-center gap-2">
-                       <span className="text-[9px] bg-[#242428] px-1.5 py-0.5 rounded text-[#A1A1AA]">{drama.category}</span>
-                       <span className="text-[9px] text-[#46d369] font-bold flex items-center gap-0.5"><Star size={8} fill="currentColor"/> {drama.score}</span>
-                    </div>
+                    <div className="flex items-center gap-2"><span className="text-[9px] bg-[#242428] px-1.5 py-0.5 rounded text-[#A1A1AA]">{drama.category}</span><span className="text-[9px] text-[#46d369] font-bold flex items-center gap-0.5"><Star size={8} fill="currentColor"/> {drama.score}</span></div>
                   </div>
                   <PlayCircle size={24} className="text-[#333] group-hover:text-white transition-colors mr-2" />
                 </div>
@@ -733,39 +860,47 @@ export default function App() {
           </div>
         )}
 
-        {/* HISTORY TAB (PUSTAKA) */}
         {activeTab === 'history' && (
           <div className="p-5 min-h-[90vh]">
-            <div className="flex items-center justify-between mb-6">
-               <h2 className="text-xl font-bold text-white">Pustaka Saya</h2>
-               {history.length > 0 && (
-                 <button onClick={clearHistory} className="text-[#A1A1AA] text-xs hover:text-white flex items-center gap-1">
-                   <Trash2 size={14}/> Hapus
-                 </button>
-               )}
+            <div className="flex items-center gap-4 mb-6 border-b border-[#242428] pb-2">
+               <button onClick={() => setSubTab('history')} className={`text-sm font-bold pb-2 border-b-2 transition-colors ${subTab === 'history' ? 'text-white border-red-600' : 'text-[#555] border-transparent'}`}>Riwayat</button>
+               <button onClick={() => setSubTab('watchlist')} className={`text-sm font-bold pb-2 border-b-2 transition-colors ${subTab === 'watchlist' ? 'text-white border-red-600' : 'text-[#555] border-transparent'}`}>Daftar Saya</button>
             </div>
 
-            {history.length > 0 ? (
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                {history.map((drama, idx) => (
-                  <DramaCard key={idx} drama={drama} onClick={openDrama} />
-                ))}
-              </div>
+            {subTab === 'history' ? (
+               <>
+                 <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-bold text-[#A1A1AA]">Terakhir Ditonton</h3>
+                    {history.length > 0 && <button onClick={clearHistory} className="text-[#A1A1AA] text-xs hover:text-white flex items-center gap-1"><Trash2 size={12}/> Hapus</button>}
+                 </div>
+                 {history.length > 0 ? (
+                   <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                     {history.map((drama, idx) => {
+                       const progress = playbackProgress[drama.bookId || drama.id];
+                       return <DramaCard key={idx} drama={drama} onClick={openDrama} progress={progress} />;
+                     })}
+                   </div>
+                 ) : (
+                   <div className="flex flex-col items-center justify-center py-20 text-[#A1A1AA]"><History size={48} className="mb-4 opacity-20"/><p className="text-sm">Belum ada riwayat tontonan.</p></div>
+                 )}
+               </>
             ) : (
-              <div className="flex flex-col items-center justify-center py-20 text-[#A1A1AA]">
-                 <History size={48} className="mb-4 opacity-20"/>
-                 <p className="text-sm">Belum ada riwayat tontonan.</p>
-                 <button onClick={() => setActiveTab('home')} className={`mt-4 ${THEME.accent} text-sm font-bold`}>
-                   Mulai Nonton
-                 </button>
-              </div>
+               <>
+                 <div className="flex items-center justify-between mb-4"><h3 className="text-sm font-bold text-[#A1A1AA]">Disimpan</h3></div>
+                 {watchlist.length > 0 ? (
+                   <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                     {watchlist.map((drama, idx) => <DramaCard key={idx} drama={drama} onClick={openDrama} onRemove={() => toggleWatchlist(drama)} />)}
+                   </div>
+                 ) : (
+                   <div className="flex flex-col items-center justify-center py-20 text-[#A1A1AA]"><Heart size={48} className="mb-4 opacity-20"/><p className="text-sm">Belum ada drama favorit.</p></div>
+                 )}
+               </>
             )}
           </div>
         )}
 
       </div>
 
-      {/* BOTTOM NAVBAR (Mobile Navigation) */}
       <div className="fixed bottom-0 left-0 w-full bg-[#0E0E10]/95 backdrop-blur-md border-t border-[#242428] flex justify-around py-3 z-50 pb-safe">
         {[
           { id: 'home', icon: Home, label: 'Beranda' },
@@ -773,24 +908,21 @@ export default function App() {
           { id: 'rank', icon: Trophy, label: 'Top' },
           { id: 'history', icon: Library, label: 'Pustaka' }
         ].map((item) => (
-          <button 
-            key={item.id}
-            onClick={() => {
-              setActiveTab(item.id);
-              if(item.id === 'home') setSelectedCategory("Semua");
-              window.scrollTo(0,0);
-            }}
-            className={`flex flex-col items-center gap-1 transition-colors ${activeTab === item.id ? 'text-white' : 'text-[#555] hover:text-[#999]'}`}
-          >
-            <item.icon 
-              size={20} 
-              strokeWidth={activeTab === item.id ? 2.5 : 2} 
-              fill={activeTab === item.id && item.id !== 'search' ? "currentColor" : "none"}
-            />
+          <button key={item.id} onClick={() => { setActiveTab(item.id); if(item.id === 'home') setSelectedCategory("Semua"); window.scrollTo(0,0); }} className={`flex flex-col items-center gap-1 transition-colors ${activeTab === item.id ? 'text-white' : 'text-[#555] hover:text-[#999]'}`}>
+            <item.icon size={20} strokeWidth={activeTab === item.id ? 2.5 : 2} fill={activeTab === item.id && item.id !== 'search' ? "currentColor" : "none"} />
             <span className="text-[9px] font-medium tracking-wide">{item.label}</span>
           </button>
         ))}
       </div>
     </div>
+  );
+}
+
+// Export the App wrapped in ErrorBoundary
+export default function App() {
+  return (
+    <ErrorBoundary>
+      <DramaStreamApp />
+    </ErrorBoundary>
   );
 }
