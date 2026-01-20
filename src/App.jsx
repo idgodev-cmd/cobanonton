@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Search, Home, Trophy, ChevronLeft, Star, Info, X, Film, AlertCircle, Bug, SkipForward, SkipBack, Zap, Flame, ChevronDown, PlayCircle, Tv, Download, History, Trash2, Library, Eye, RefreshCw, Heart, Moon, Clock, FastForward, Rewind, Volume2, Sun, Award } from 'lucide-react';
+import { Play, Search, Home, Trophy, ChevronLeft, Star, Info, X, Film, AlertCircle, Bug, SkipForward, SkipBack, Zap, Flame, ChevronDown, PlayCircle, Tv, Download, History, Trash2, Library, Eye, RefreshCw, Heart, Moon, Clock, FastForward, Rewind, Volume2, Sun, Award, HandMetal } from 'lucide-react';
 
 // --- ERROR BOUNDARY COMPONENT ---
 class ErrorBoundary extends React.Component {
@@ -182,10 +182,11 @@ function DramaStreamApp() {
   const [sleepTimer, setSleepTimer] = useState(null);
   const [showControls, setShowControls] = useState(true);
   
-  // Gesture State
+  // Gesture & Hint State
   const [gestureStatus, setGestureStatus] = useState(null); // { type: 'volume' | 'brightness', value: number }
   const [playerVolume, setPlayerVolume] = useState(1);
   const [playerBrightness, setPlayerBrightness] = useState(1);
+  const [showGestureHint, setShowGestureHint] = useState(false);
   const touchStartRef = useRef(null);
   const videoRef = useRef(null);
 
@@ -234,35 +235,32 @@ function DramaStreamApp() {
       const newBadges = [...earnedBadges];
       let updated = false;
 
-      // 1. Newbie: Watch 1 episode
+      // 1. Newbie
       const totalWatched = Object.values(watchedEpisodes).flat().length;
       if (totalWatched >= 1 && !newBadges.includes('newbie')) {
         newBadges.push('newbie');
         updated = true;
       }
 
-      // 2. Marathon: Watch 5 episodes
+      // 2. Marathon
       if (totalWatched >= 5 && !newBadges.includes('marathon')) {
         newBadges.push('marathon');
         updated = true;
       }
 
-      // 3. Collector: Save 3 dramas
+      // 3. Collector
       if (watchlist.length >= 3 && !newBadges.includes('collector')) {
         newBadges.push('collector');
         updated = true;
       }
 
-      // 4. Night Owl: Check current time (runtime check in playEpisode)
-
       if (updated) {
         setEarnedBadges(newBadges);
         localStorage.setItem('cobanonton_badges', JSON.stringify(newBadges));
-        // Optional: Show toast "Badge Unlocked!"
       }
     };
     checkBadges();
-  }, [watchedEpisodes, watchlist]); // Check when stats change
+  }, [watchedEpisodes, watchlist]);
 
   // --- PWA LOGIC ---
   useEffect(() => {
@@ -285,7 +283,7 @@ function DramaStreamApp() {
     }
   };
 
-  // --- DATA MANAGEMENT LOGIC ---
+  // --- DATA MANAGEMENT ---
   const saveToHistory = (drama) => {
     if (!drama) return;
     const cleanDrama = { 
@@ -361,7 +359,7 @@ function DramaStreamApp() {
     }
   };
 
-  // --- SLEEP TIMER LOGIC ---
+  // --- SLEEP TIMER ---
   useEffect(() => {
     if (sleepTimer !== null) {
       if (sleepTimer <= 0) {
@@ -394,7 +392,6 @@ function DramaStreamApp() {
     }
   };
 
-  // Load Data
   useEffect(() => {
     const loadHome = async () => {
       setLoading(true);
@@ -428,7 +425,6 @@ function DramaStreamApp() {
     if (activeTab === 'rank') loadRank();
   }, [activeTab]);
 
-  // Search Logic
   const performSearch = async (query) => {
     if (!query) return;
     setLoading(true);
@@ -457,7 +453,6 @@ function DramaStreamApp() {
     }
   };
 
-  // Open Detail
   const openDrama = async (drama) => {
     saveToHistory(drama);
     setSelectedDrama(drama);
@@ -482,12 +477,10 @@ function DramaStreamApp() {
     }
   };
 
-  // Play Episode
   const playEpisode = async (chapter, index) => {
     if (!selectedDrama) return;
     const dramaId = selectedDrama.bookId || selectedDrama.id;
     
-    // Check Night Owl Badge
     const hour = new Date().getHours();
     if (hour >= 0 && hour < 4 && !earnedBadges.includes('nightowl')) {
       const newBadges = [...earnedBadges, 'nightowl'];
@@ -505,9 +498,14 @@ function DramaStreamApp() {
     setError(null);
     setPlaybackSpeed(1); 
     setIsLightsOff(false);
-    setPlayerBrightness(1); // Reset brightness
-    setShowNextPreview(false); // Reset preview
+    setPlayerBrightness(1); 
+    setShowNextPreview(false); 
     setNextPreviewDismissed(false);
+
+    // Check gesture hint
+    if (!localStorage.getItem('gesture_hint_seen')) {
+      setShowGestureHint(true);
+    }
 
     const bookId = dramaId;
     const chapterIdx = typeof index === 'number' ? index + 1 : chapter.index || 1; 
@@ -533,8 +531,12 @@ function DramaStreamApp() {
     }
   };
 
-  // --- PLAYER CONTROLLER (GESTURES & TIME) ---
-  
+  // --- PLAYER CONTROLLER ---
+  const dismissGestureHint = () => {
+    setShowGestureHint(false);
+    localStorage.setItem('gesture_hint_seen', 'true');
+  };
+
   const handleDoubleTap = (side) => {
     if (videoRef.current) {
       const skipAmount = 10;
@@ -557,16 +559,14 @@ function DramaStreamApp() {
     const deltaY = touchStartRef.current.y - e.touches[0].clientY;
     const screenWidth = window.innerWidth;
     const touchX = e.touches[0].clientX;
-    const sensitivity = 0.005; // Adjust sensitivity
+    const sensitivity = 0.005; 
 
     if (touchX < screenWidth / 2) {
-      // Left Side: Brightness
       let newBright = touchStartRef.current.valBright + (deltaY * sensitivity);
-      newBright = Math.max(0.3, Math.min(1, newBright)); // Limit 0.3 to 1
+      newBright = Math.max(0.3, Math.min(1, newBright)); 
       setPlayerBrightness(newBright);
       setGestureStatus({ type: 'brightness', value: newBright });
     } else {
-      // Right Side: Volume
       let newVol = touchStartRef.current.valVol + (deltaY * sensitivity);
       newVol = Math.max(0, Math.min(1, newVol));
       videoRef.current.volume = newVol;
@@ -577,7 +577,7 @@ function DramaStreamApp() {
 
   const handleTouchEnd = () => {
     touchStartRef.current = null;
-    setTimeout(() => setGestureStatus(null), 1000); // Hide indicator after 1s
+    setTimeout(() => setGestureStatus(null), 1000); 
   };
 
   const handleTimeUpdate = () => {
@@ -589,7 +589,6 @@ function DramaStreamApp() {
       
       updateProgress(dramaId, currentIdx, currentTime, duration);
 
-      // Next Episode Preview Logic
       const timeLeft = duration - currentTime;
       const hasNext = currentIdx < chapters.length - 1;
       
@@ -597,7 +596,6 @@ function DramaStreamApp() {
         setShowNextPreview(true);
       }
       
-      // Auto-hide preview if time left is very small (video ending)
       if (timeLeft <= 0.5) setShowNextPreview(false);
     }
   };
@@ -624,10 +622,37 @@ function DramaStreamApp() {
     return (
       <div className={`fixed inset-0 z-[999] bg-black font-sans`}>
         
-        {/* Lights Off Overlay */}
         {isLightsOff && <div className="absolute inset-0 bg-black z-40 pointer-events-none"></div>}
 
-        {/* Gesture Indicator Overlay */}
+        {/* GESTURE HINT OVERLAY (ONBOARDING) */}
+        {showGestureHint && (
+          <div className="absolute inset-0 z-[60] bg-black/80 flex flex-col items-center justify-center text-white" onClick={dismissGestureHint}>
+            <div className="flex w-full max-w-md px-10 justify-between">
+               <div className="flex flex-col items-center gap-4">
+                  <div className="w-1 bg-white/20 h-32 rounded-full relative overflow-hidden">
+                    <div className="absolute bottom-0 w-full h-1/2 bg-white animate-pulse"></div>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <Sun size={32} />
+                    <span className="text-xs font-bold text-center mt-2">Geser Kiri<br/>Kecerahan</span>
+                  </div>
+               </div>
+               <div className="flex flex-col items-center gap-4">
+                  <div className="w-1 bg-white/20 h-32 rounded-full relative overflow-hidden">
+                    <div className="absolute bottom-0 w-full h-1/2 bg-white animate-pulse"></div>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <Volume2 size={32} />
+                    <span className="text-xs font-bold text-center mt-2">Geser Kanan<br/>Volume</span>
+                  </div>
+               </div>
+            </div>
+            <div className="mt-12 animate-bounce bg-white/10 px-6 py-2 rounded-full text-sm font-bold">
+              Ketuk layar untuk mulai
+            </div>
+          </div>
+        )}
+
         {gestureStatus && (
           <div className="absolute inset-0 flex items-center justify-center z-50 pointer-events-none">
             <div className="bg-black/60 backdrop-blur-md p-4 rounded-full text-white flex flex-col items-center">
@@ -637,7 +662,6 @@ function DramaStreamApp() {
           </div>
         )}
 
-        {/* Next Episode Preview Popup */}
         {showNextPreview && (
           <div className="absolute bottom-24 right-4 z-[60] bg-[#16161A] border border-[#242428] p-4 rounded-xl shadow-2xl animate-in slide-in-from-right-10 w-64">
              <div className="flex justify-between items-start mb-2">
@@ -662,7 +686,6 @@ function DramaStreamApp() {
           </div>
         )}
 
-        {/* Header (Absolute Top) */}
         <div className={`absolute top-0 left-0 w-full p-4 flex items-center justify-between bg-gradient-to-b from-black/90 to-transparent z-50 transition-opacity duration-300 ${!showControls && 'opacity-0'}`}>
           <button 
             onClick={() => setCurrentView('detail')}
@@ -690,7 +713,6 @@ function DramaStreamApp() {
           </div>
         </div>
 
-        {/* Video Container (Absolute Fullscreen) */}
         <div 
           className="absolute inset-0 flex items-center justify-center bg-black z-0"
           onClick={() => setShowControls(!showControls)}
@@ -698,7 +720,6 @@ function DramaStreamApp() {
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
         >
-          {/* Double Tap Zones */}
           <div className="absolute left-0 top-0 bottom-0 w-[30%] z-20" onDoubleClick={(e) => { e.stopPropagation(); handleDoubleTap('left'); }}></div>
           <div className="absolute right-0 top-0 bottom-0 w-[30%] z-20" onDoubleClick={(e) => { e.stopPropagation(); handleDoubleTap('right'); }}></div>
 
@@ -732,7 +753,6 @@ function DramaStreamApp() {
           )}
         </div>
 
-        {/* Controls (Absolute Bottom) */}
         <div className={`absolute bottom-0 left-0 w-full bg-gradient-to-t from-black via-black/80 to-transparent p-4 pb-10 z-50 transition-transform duration-300 ${!showControls ? 'translate-y-full' : 'translate-y-0'}`}>
             {videoRef.current && (
               <div className="flex items-center justify-between text-white mb-6 px-2">
@@ -897,6 +917,7 @@ function DramaStreamApp() {
               </div>
            </div>
            
+           {/* HEADER LINKS */}
            <div className="hidden md:flex items-center gap-6 text-sm font-medium">
              <button onClick={() => {setActiveTab('home'); setSelectedCategory('Semua')}} className={`hover:text-white transition-colors ${activeTab === 'home' ? 'text-white font-bold' : 'text-[#A1A1AA]'}`}>Beranda</button>
              <button onClick={() => setActiveTab('search')} className={`hover:text-white transition-colors ${activeTab === 'search' ? 'text-white font-bold' : 'text-[#A1A1AA]'}`}>Search</button>
@@ -985,6 +1006,7 @@ function DramaStreamApp() {
           </>
         )}
 
+        {/* SEARCH TAB */}
         {activeTab === 'search' && (
           <div className="p-5 min-h-[90vh]">
             <form onSubmit={handleSearchSubmit} className="relative mb-8">
@@ -998,6 +1020,7 @@ function DramaStreamApp() {
           </div>
         )}
 
+        {/* RANK TAB */}
         {activeTab === 'rank' && (
           <div className="p-5 min-h-[90vh]">
             <h2 className="text-2xl font-black text-white mb-1 text-center">TOP 10</h2>
@@ -1018,6 +1041,7 @@ function DramaStreamApp() {
           </div>
         )}
 
+        {/* HISTORY TAB (PUSTAKA) */}
         {activeTab === 'history' && (
           <div className="p-5 min-h-[90vh]">
             <div className="flex items-center gap-4 mb-6 border-b border-[#242428] pb-2">
@@ -1080,6 +1104,7 @@ function DramaStreamApp() {
 
       </div>
 
+      {/* BOTTOM NAVBAR */}
       <div className="fixed bottom-0 left-0 w-full bg-[#0E0E10]/95 backdrop-blur-md border-t border-[#242428] flex justify-around py-3 z-50 pb-safe">
         {[
           { id: 'home', icon: Home, label: 'Beranda' },
