@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Play, Search, Home, Trophy, List, ChevronLeft, Star, Clock, Info, X, Film, AlertCircle, RefreshCw, Bug, SkipForward, SkipBack, Zap, LayoutGrid, Flame, ChevronDown, PlayCircle, Tv, Download, History, Trash2, Library, Eye } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Play, Search, Home, Trophy, ChevronLeft, Star, Info, X, Film, AlertCircle, Bug, SkipForward, SkipBack, Zap, Flame, ChevronDown, PlayCircle, Tv, Download, History, Trash2, Library, Eye, RefreshCw } from 'lucide-react';
 
 // --- API CONSTANTS ---
 const API_BASE = "https://dramabos.asia/api/dramabox/api";
@@ -436,6 +436,7 @@ export default function App() {
              <span>{dramaDetail?.category || "Drama"}</span>
              <span>•</span>
              <span className="border border-[#333] px-1 rounded text-[10px]">HD</span>
+             <span className="flex items-center gap-1 text-green-400"><RefreshCw size={14}/> Update</span>
           </div>
 
           <button 
