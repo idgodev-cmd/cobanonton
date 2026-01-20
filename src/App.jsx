@@ -1,53 +1,53 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Search, Home, Trophy, List, ChevronLeft, Star, Clock, Info, X, Film, AlertCircle, RefreshCw, Bug, SkipForward, SkipBack, Zap } from 'lucide-react';
+import { Play, Search, Home, Trophy, List, ChevronLeft, Star, Clock, Info, X, Film, AlertCircle, RefreshCw, Bug, SkipForward, SkipBack, Zap, LayoutGrid, Flame, ChevronDown } from 'lucide-react';
 
 // --- API CONSTANTS ---
 const API_BASE = "https://dramabos.asia/api/dramabox/api";
 
+// --- CATEGORY LIST (UPDATED) ---
+const CATEGORIES = [
+  "Semua", "Manis", "Bayi", "Perjalanan Waktu", "Cinta Pahit", "Melawan Balik", 
+  "Orang Kecil", "Identitas Tersembunyi", "Realitas", "Cinta Sejati", 
+  "Ahli Turun Gunung", "Keluarga", "Nikah Dulu Cinta Belakangan", "Urban", 
+  "Pernikahan Kilat", "Kembali Orang Kuat", "Kawin Kontrak", "Menantu Matrilineal", 
+  "Wanita Tangguh", "Identitas Tertukar", "Salah Paham", "Kekuatan Super", 
+  "Pengkhianatan", "Balas Dendam", "Orang Kuat", "Kebangkitan", 
+  "Kebangkitan Warisan", "Romansa", "Kelahiran Kembali", "Identitas Rahasia", 
+  "Cinta Segitiga"
+];
+
 // --- COMPONENTS ---
 
-// 1. Loading Skeleton
 const Skeleton = ({ className }) => (
-  <div className={`animate-pulse bg-white/10 rounded ${className}`}></div>
+  <div className={`animate-pulse bg-white/10 rounded-xl ${className}`}></div>
 );
 
-// 2. Movie Card
-const DramaCard = ({ drama, onClick }) => (
+// Modern Movie Card
+const DramaCard = ({ drama, onClick, className = "", aspect = "aspect-[2/3]" }) => (
   <div 
     onClick={() => onClick(drama)}
-    className="relative group cursor-pointer flex-shrink-0 w-28 md:w-44 flex flex-col gap-2 transition-transform duration-300 hover:-translate-y-1"
+    className={`relative group cursor-pointer overflow-hidden rounded-md bg-gray-900 ${className}`}
   >
-    <div className="relative aspect-[2/3] rounded-xl overflow-hidden bg-gray-800 shadow-lg shadow-black/50">
+    <div className={`relative w-full h-full ${aspect}`}>
       <img 
         src={drama.cover || drama.imageUrl || "https://via.placeholder.com/300x450?text=No+Image"} 
         alt={drama.title || drama.bookName}
-        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
         loading="lazy"
         onError={(e) => e.target.src = "https://via.placeholder.com/300x450?text=Error"}
       />
-      <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60 group-hover:opacity-80 transition-opacity"></div>
+      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-60 group-hover:opacity-80 transition-opacity"></div>
       
-      {/* Play Button Overlay */}
-      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 scale-50 group-hover:scale-100">
-        <div className="bg-white/20 backdrop-blur-md p-3 rounded-full border border-white/30 text-white shadow-xl">
-          <Play size={20} fill="currentColor" />
-        </div>
+      {/* Overlay Info */}
+      <div className="absolute bottom-0 left-0 w-full p-2 translate-y-2 group-hover:translate-y-0 transition-transform duration-300">
+         <h3 className="text-white text-xs font-bold leading-tight line-clamp-1 drop-shadow-md mb-0.5">
+          {drama.title || drama.bookName || "Judul Tidak Diketahui"}
+         </h3>
+         <div className="flex items-center gap-2 text-[9px] text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity delay-75">
+            <span className="text-green-400 font-bold">{drama.score ? `${drama.score} Match` : 'New'}</span>
+            <span className="border border-gray-500 px-1 rounded text-[8px]">HD</span>
+         </div>
       </div>
-
-      {/* Score Badge */}
-      {drama.score && (
-        <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm border border-white/10 text-yellow-400 text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1">
-          <Star size={8} fill="currentColor" /> {drama.score}
-        </div>
-      )}
-    </div>
-    <div className="px-1">
-      <h3 className="text-gray-100 text-sm font-semibold line-clamp-2 leading-tight group-hover:text-red-400 transition-colors">
-        {drama.title || drama.bookName || "Judul Tidak Diketahui"}
-      </h3>
-      <span className="text-gray-500 text-xs mt-1 block">
-        {drama.category || "Drama Seru"}
-      </span>
     </div>
   </div>
 );
@@ -55,8 +55,10 @@ const DramaCard = ({ drama, onClick }) => (
 // 3. Main App Component
 export default function App() {
   const [activeTab, setActiveTab] = useState('home');
+  const [selectedCategory, setSelectedCategory] = useState("Semua");
+  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [selectedDrama, setSelectedDrama] = useState(null);
-  const [currentView, setCurrentView] = useState('main'); // main, detail, player
+  const [currentView, setCurrentView] = useState('main'); 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -72,6 +74,10 @@ export default function App() {
   const [chapters, setChapters] = useState([]);
   const [currentChapter, setCurrentChapter] = useState(null);
   const [videoUrl, setVideoUrl] = useState(null);
+
+  // Hero Drama (Random from Home Data)
+  const heroDrama = homeData.length > 0 ? homeData[0] : null;
+  const bentoGridData = homeData.slice(1, 7); // Items for Bento Grid
 
   // --- FETCHING LOGIC ---
   const fetchData = async (endpoint) => {
@@ -123,21 +129,39 @@ export default function App() {
         }
       }
     };
-    loadRank();
+    if (activeTab === 'rank') loadRank();
   }, [activeTab]);
 
-  // Search Logic
-  const handleSearch = async (e) => {
-    e.preventDefault();
-    if (!searchQuery) return;
+  // Search Logic Helper
+  const performSearch = async (query) => {
+    if (!query) return;
     setLoading(true);
+    setSearchQuery(query); 
     try {
-      const res = await fetchData(`/search/${encodeURIComponent(searchQuery)}/1?lang=in&pageSize=20`);
+      const res = await fetchData(`/search/${encodeURIComponent(query)}/1?lang=in&pageSize=20`);
       setSearchResults(res.data?.list || res.data || []);
     } catch (err) {
       setError("Gagal mencari drama.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    setActiveTab('search');
+    performSearch(searchQuery);
+  };
+
+  const handleCategoryClick = (categoryName) => {
+    setSelectedCategory(categoryName);
+    setIsCategoryOpen(false); // Close modal
+    if (categoryName === "Semua") {
+      setActiveTab('home');
+    } else {
+      setActiveTab('search');
+      setSearchQuery(categoryName); // Set search query to category name
+      performSearch(categoryName);
     }
   };
 
@@ -177,7 +201,6 @@ export default function App() {
     setError(null);
 
     const bookId = selectedDrama.bookId || selectedDrama.id;
-    // Ensure index is correct. API usually expects 1-based index
     const chapterIdx = typeof index === 'number' ? index + 1 : chapter.index || 1; 
 
     try {
@@ -213,7 +236,7 @@ export default function App() {
   // --- RENDER HELPERS ---
 
   if (currentView === 'player') {
-    // Determine Nav State
+    // Player View (Unchanged Logic, updated styling slightly if needed)
     const currentIdx = chapters.findIndex(c => c === currentChapter);
     const hasNext = currentIdx < chapters.length - 1;
     const hasPrev = currentIdx > 0;
@@ -237,7 +260,6 @@ export default function App() {
 
         {/* Video Area */}
         <div className="flex-1 flex flex-col relative bg-black justify-center overflow-hidden">
-          {/* Main Video Container */}
           <div className="relative w-full h-full flex items-center justify-center">
             {loading ? (
               <div className="text-white flex flex-col items-center gap-4">
@@ -264,12 +286,10 @@ export default function App() {
                   }}
                 />
                 
-                {/* Desktop Floating Navigation */}
                 {hasPrev && (
                    <button 
                      onClick={() => playEpisode(chapters[currentIdx - 1], currentIdx - 1)}
                      className="hidden md:flex absolute left-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-red-600/80 p-3 rounded-full text-white backdrop-blur-sm transition-all"
-                     title="Episode Sebelumnya"
                    >
                      <SkipBack size={24} />
                    </button>
@@ -278,7 +298,6 @@ export default function App() {
                    <button 
                      onClick={() => playEpisode(chapters[currentIdx + 1], currentIdx + 1)}
                      className="hidden md:flex absolute right-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-red-600/80 p-3 rounded-full text-white backdrop-blur-sm transition-all"
-                     title="Episode Selanjutnya"
                    >
                      <SkipForward size={24} />
                    </button>
@@ -311,10 +330,9 @@ export default function App() {
             )}
           </div>
         </div>
-
-        {/* Bottom Control Bar (Mobile Friendly) */}
+        
+        {/* Mobile Controls */}
         <div className="bg-[#0a0a0a] border-t border-white/5 p-4 pb-8 safe-area-pb z-30">
-            {/* Nav Controls */}
             <div className="flex items-center justify-between mb-4 max-w-md mx-auto">
                <button 
                  disabled={!hasPrev}
@@ -336,23 +354,6 @@ export default function App() {
                  Next Eps <SkipForward size={18} />
                </button>
             </div>
-
-            {/* Chapter Scroll */}
-            <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar scroll-smooth">
-                {chapters.map((ch, idx) => (
-                   <button
-                      key={ch.id || idx}
-                      onClick={() => playEpisode(ch, idx)}
-                      className={`flex-shrink-0 w-12 h-12 flex items-center justify-center rounded-xl text-sm font-bold transition-all border ${
-                         currentIdx === idx 
-                         ? 'bg-white text-black border-white scale-110 shadow-lg z-10' 
-                         : 'bg-gray-900 text-gray-500 border-gray-800 hover:bg-gray-800 hover:text-gray-300'
-                      }`}
-                   >
-                     {idx + 1}
-                   </button>
-                ))}
-            </div>
         </div>
       </div>
     );
@@ -361,7 +362,7 @@ export default function App() {
   if (currentView === 'detail') {
     return (
       <div className="min-h-screen bg-[#050505] text-white pb-20 font-sans">
-        {/* Hero Image with Gradient */}
+        {/* Detail View (Unchanged) */}
         <div className="relative h-[45vh] w-full">
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#050505]/60 to-[#050505] z-10"></div>
           <img 
@@ -377,7 +378,6 @@ export default function App() {
           </button>
         </div>
 
-        {/* Detail Content */}
         <div className="px-6 -mt-12 relative z-20">
           <div className="flex items-start justify-between">
             <h1 className="text-3xl font-black leading-none mb-3 text-transparent bg-clip-text bg-gradient-to-br from-white to-gray-400 max-w-[80%]">
@@ -407,7 +407,6 @@ export default function App() {
             <Play fill="currentColor" size={22} /> MULAI NONTON
           </button>
 
-          {/* Chapter Grid */}
           <div className="border-t border-gray-800 pt-6">
             <h2 className="text-lg font-bold mb-4 flex items-center gap-2 text-white">
               <span className="w-1 h-6 bg-red-600 rounded-full"></span> Daftar Episode
@@ -428,11 +427,6 @@ export default function App() {
                 ))
               )}
             </div>
-            {chapters.length === 0 && !loading && (
-               <div className="text-center py-10 bg-gray-900/30 rounded-2xl border border-dashed border-gray-800">
-                  <p className="text-gray-500">Belum ada episode tersedia.</p>
-               </div>
-            )}
           </div>
         </div>
       </div>
@@ -442,113 +436,188 @@ export default function App() {
   // --- MAIN LAYOUT (Home, Search, Rank) ---
   return (
     <div className="min-h-screen bg-[#050505] text-white pb-24 font-sans selection:bg-red-500/30">
-      {/* Top Bar Glass */}
-      <div className="sticky top-0 z-30 bg-[#050505]/80 backdrop-blur-xl px-5 py-4 flex items-center justify-between border-b border-white/5">
-        <div className="flex items-center gap-2">
-           <div className="bg-gradient-to-br from-red-500 to-purple-600 p-1.5 rounded-lg">
-              <Film size={20} className="text-white" />
-           </div>
-           <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400 font-black text-xl tracking-tighter">
+      {/* HEADER: Netflix Style (Sticky, Transparent/Blur) */}
+      <div className={`fixed top-0 left-0 w-full z-40 transition-all duration-300 px-4 py-4 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent`}>
+        <div className="flex items-center gap-4">
+           {/* LOGO */}
+           <span className="text-red-600 font-black text-2xl tracking-tighter drop-shadow-lg cursor-pointer" onClick={() => setActiveTab('home')}>
              COBANONTON
            </span>
+           
+           {/* CATEGORY DROPDOWN TRIGGER */}
+           <button 
+             onClick={() => setIsCategoryOpen(true)}
+             className="hidden md:flex items-center gap-1 text-white text-sm font-medium hover:text-gray-300 transition-colors"
+           >
+             Kategori <ChevronDown size={14} />
+           </button>
+           <button 
+             onClick={() => setIsCategoryOpen(true)}
+             className="md:hidden text-white text-sm font-medium hover:text-gray-300 transition-colors"
+           >
+             Kategori
+           </button>
         </div>
-        <div className="flex gap-3">
-          <button className="p-2 rounded-full bg-gray-800/50 hover:bg-gray-800 transition-colors">
-            <Search size={18} className="text-gray-400" onClick={() => setActiveTab('search')}/>
-          </button>
+
+        <div className="flex gap-4">
+           <Search size={24} className="text-white drop-shadow-md cursor-pointer hover:text-gray-300" onClick={() => setActiveTab('search')}/>
         </div>
       </div>
 
+      {/* CATEGORY OVERLAY MODAL */}
+      {isCategoryOpen && (
+        <div className="fixed inset-0 z-[60] bg-black/95 backdrop-blur-md pt-20 px-6 animate-in fade-in slide-in-from-top-4 duration-300">
+           {/* Close Button */}
+           <button 
+             onClick={() => setIsCategoryOpen(false)}
+             className="absolute bottom-10 left-1/2 -translate-x-1/2 md:top-6 md:right-6 md:left-auto md:translate-x-0 bg-white/10 p-3 rounded-full text-white hover:bg-white/20 transition-all"
+           >
+             <X size={24}/>
+           </button>
+
+           <div className="text-center mb-8">
+             <h2 className="text-2xl font-bold text-gray-300">Pilih Genre</h2>
+           </div>
+
+           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 max-w-4xl mx-auto h-[70vh] overflow-y-auto pb-20 no-scrollbar">
+             {CATEGORIES.map((cat, idx) => (
+               <button 
+                 key={idx}
+                 onClick={() => handleCategoryClick(cat)}
+                 className={`py-3 px-2 rounded-lg text-sm font-medium transition-all ${selectedCategory === cat ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'}`}
+               >
+                 {cat}
+               </button>
+             ))}
+           </div>
+        </div>
+      )}
+
       {/* Error Toast */}
       {error && !videoUrl && currentView !== 'player' && (
-        <div className="mx-4 mt-4 p-4 bg-red-900/20 border border-red-500/30 rounded-2xl flex gap-3 text-red-200 text-sm items-start backdrop-blur-sm animate-in slide-in-from-top-2">
+        <div className="fixed top-20 left-4 right-4 z-50 p-4 bg-red-900/90 border border-red-500/30 rounded-2xl flex gap-3 text-red-200 text-sm items-start backdrop-blur-md animate-in slide-in-from-top-2 shadow-2xl">
           <Bug className="flex-shrink-0 mt-0.5 text-red-500" />
           <div className="flex-1">
             <p className="font-bold text-red-100 mb-1">Terjadi Kesalahan</p>
-            <p className="text-white/70 text-xs leading-relaxed">{error}</p>
-            {error.includes("CORS") && (
-              <div className="mt-2 bg-black/40 p-2 rounded text-[10px] text-gray-400">
-                ⚠️ Pasang ekstensi <b>Allow CORS</b> di browser kamu supaya lancar.
-              </div>
-            )}
+            <p className="text-white/80 text-xs leading-relaxed">{error}</p>
           </div>
           <button onClick={() => setError(null)} className="p-1 hover:bg-red-500/20 rounded"><X size={16} /></button>
         </div>
       )}
 
       {/* Content Area */}
-      <div className="p-5 space-y-10">
+      <div className="pb-10">
         
         {/* HOME TAB */}
         {activeTab === 'home' && (
           <>
-            {/* Featured Section */}
-            <section className="animate-in fade-in duration-500">
-               <div className="flex items-center justify-between mb-5">
-                 <h2 className="text-lg font-bold flex items-center gap-2">
-                   <span className="w-1.5 h-6 bg-gradient-to-b from-red-500 to-purple-600 rounded-full"></span> 
-                   Rekomendasi Spesial
-                 </h2>
-                 <span className="text-xs font-medium text-gray-500 hover:text-white cursor-pointer transition-colors">Lihat Semua</span>
-               </div>
-               
-               <div className="flex overflow-x-auto gap-4 pb-4 -mx-5 px-5 no-scrollbar scroll-smooth">
-                 {loading && homeData.length === 0 ? (
-                    [...Array(4)].map((_,i) => <Skeleton key={i} className="w-32 h-52 flex-shrink-0 rounded-xl" />)
-                 ) : (
-                   homeData.map((drama, idx) => (
-                     <DramaCard key={idx} drama={drama} onClick={openDrama} />
-                   ))
-                 )}
-               </div>
-            </section>
+            {/* HERO SECTION (Netflix Style) */}
+            {heroDrama && !loading && (
+              <div className="relative w-full h-[70vh] mb-6">
+                <img 
+                  src={heroDrama.cover || heroDrama.imageUrl} 
+                  className="w-full h-full object-cover"
+                  alt="Hero"
+                />
+                {/* Gradient Overlays for cleaner look */}
+                <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-[#050505]"></div>
+                <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/60 to-transparent"></div>
+                
+                <div className="absolute bottom-0 left-0 w-full p-6 pb-10 flex flex-col items-center text-center">
+                  <div className="mb-4 flex flex-wrap justify-center gap-2 animate-in slide-in-from-bottom-4 duration-700">
+                     {heroDrama.category && <span className="text-[10px] font-bold tracking-widest uppercase flex items-center gap-1 text-gray-200">
+                       <span className="w-1 h-1 bg-red-500 rounded-full"></span> {heroDrama.category}
+                     </span>}
+                  </div>
+                  <h1 className="text-4xl md:text-7xl font-black text-white mb-6 drop-shadow-2xl leading-none tracking-tight max-w-3xl animate-in slide-in-from-bottom-2 duration-700 delay-100">
+                    {heroDrama.title}
+                  </h1>
+                  <div className="flex gap-3 w-full max-w-sm animate-in slide-in-from-bottom-2 duration-700 delay-200">
+                     <button 
+                       onClick={() => openDrama(heroDrama)}
+                       className="flex-1 bg-white text-black py-3 rounded-[4px] font-bold flex items-center justify-center gap-2 hover:bg-gray-200 transition-colors"
+                     >
+                       <Play fill="black" size={20} /> Putar
+                     </button>
+                     <button 
+                       onClick={() => openDrama(heroDrama)}
+                       className="flex-1 bg-gray-500/40 backdrop-blur-md text-white py-3 rounded-[4px] font-bold flex items-center justify-center gap-2 hover:bg-gray-500/50 transition-colors"
+                     >
+                       <Info size={20} /> Info Lengkap
+                     </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
-            {/* New Releases Grid */}
-            <section className="animate-in fade-in duration-700 delay-100">
-               <h2 className="text-lg font-bold mb-5 flex items-center gap-2">
-                 <span className="w-1.5 h-6 bg-gradient-to-b from-blue-500 to-cyan-400 rounded-full"></span> 
-                 Baru Dirilis
-               </h2>
-               <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-x-4 gap-y-8">
-                 {loading && newData.length === 0 ? (
-                    [...Array(6)].map((_,i) => <Skeleton key={i} className="aspect-[2/3] rounded-xl" />)
+            <div className="px-4 space-y-10 mt-[-40px] relative z-10">
+              {/* SECTION: SEDANG HANGAT */}
+              <section className="animate-in fade-in duration-500">
+                 <h2 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
+                    Sedang Hangat
+                 </h2>
+                 
+                 {loading && homeData.length === 0 ? (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 h-96">
+                       <Skeleton className="col-span-2 row-span-2 h-full" />
+                       <Skeleton className="h-full" />
+                       <Skeleton className="h-full" />
+                    </div>
                  ) : (
-                   newData.map((drama, idx) => (
-                     <DramaCard key={idx} drama={drama} onClick={openDrama} />
-                   ))
+                   <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+                      {homeData.slice(0, 10).map((drama, idx) => (
+                        <DramaCard key={idx} drama={drama} onClick={openDrama} />
+                      ))}
+                   </div>
                  )}
-               </div>
-            </section>
+              </section>
+
+              {/* SECTION: BARU DITAMBAHKAN */}
+              <section>
+                 <h2 className="text-lg font-bold text-white mb-3">Baru Ditambahkan</h2>
+                 <div className="flex overflow-x-auto gap-3 pb-4 -mx-4 px-4 no-scrollbar">
+                   {loading && newData.length === 0 ? (
+                      [...Array(5)].map((_,i) => <Skeleton key={i} className="w-28 h-40 flex-shrink-0" />)
+                   ) : (
+                     newData.map((drama, idx) => (
+                       <DramaCard key={idx} drama={drama} onClick={openDrama} className="w-28 flex-shrink-0" />
+                     ))
+                   )}
+                 </div>
+              </section>
+            </div>
           </>
         )}
 
-        {/* SEARCH TAB */}
+        {/* SEARCH TAB (Shows when category clicked) */}
         {activeTab === 'search' && (
-          <div className="min-h-[60vh] animate-in slide-in-from-bottom-4">
-            <form onSubmit={handleSearch} className="relative mb-8 group">
-              <div className="absolute inset-0 bg-gradient-to-r from-red-600 to-purple-600 rounded-2xl blur opacity-20 group-hover:opacity-40 transition-opacity"></div>
+          <div className="p-5 min-h-[80vh] pt-24">
+            <form onSubmit={handleSearchSubmit} className="relative mb-8">
               <input 
                 type="text" 
-                placeholder="Cari judul drama favoritmu..."
-                className="relative w-full bg-[#111] border border-gray-800 rounded-2xl py-4 pl-12 pr-4 text-white focus:outline-none focus:border-gray-600 transition-colors placeholder:text-gray-600"
+                placeholder="Cari judul drama..."
+                className="w-full bg-[#1a1a1a] border border-white/10 rounded-none py-3 pl-12 pr-4 text-white focus:border-white transition-all placeholder:text-gray-500 font-medium"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 autoFocus
               />
-              <Search className="absolute left-4 top-4 text-gray-500 group-focus-within:text-red-500 transition-colors" size={22} />
+              <Search className="absolute left-4 top-3.5 text-gray-500" size={20} />
             </form>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <h2 className="text-lg font-bold mb-4 text-gray-400">
+              {searchQuery ? `Hasil: "${searchQuery}"` : "Jelajahi"}
+            </h2>
+
+            <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
                {loading ? (
-                  [...Array(4)].map((_,i) => <Skeleton key={i} className="aspect-[2/3] rounded-xl" />)
+                  [...Array(6)].map((_,i) => <Skeleton key={i} className="aspect-[2/3]" />)
                ) : searchResults.length > 0 ? (
                   searchResults.map((drama, idx) => (
                     <DramaCard key={idx} drama={drama} onClick={openDrama} />
                   ))
                ) : (
-                 <div className="col-span-full flex flex-col items-center justify-center py-20 text-gray-600">
-                    <Search size={48} className="mb-4 opacity-20"/>
-                    <p className="text-sm font-medium">{searchQuery ? "Drama tidak ditemukan" : "Ketik judul drama di atas"}</p>
+                 <div className="col-span-full py-20 text-center">
+                    <p className="text-gray-500">Tidak ada drama ditemukan.</p>
                  </div>
                )}
             </div>
@@ -557,50 +626,41 @@ export default function App() {
 
         {/* RANK TAB */}
         {activeTab === 'rank' && (
-          <div className="animate-in slide-in-from-right-4">
+          <div className="p-5 pt-24">
             <div className="text-center mb-8">
-               <h2 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-600 inline-flex items-center gap-2">
-                 <Trophy className="text-yellow-500" fill="currentColor"/> TOP GLOBAL
-               </h2>
-               <p className="text-gray-500 text-xs mt-1">Drama paling banyak ditonton minggu ini</p>
+               <h2 className="text-2xl font-black text-white">TOP 10 INDONESIA</h2>
+               <p className="text-gray-500 text-xs mt-1">Update Harian</p>
             </div>
             
-            <div className="space-y-4">
+            <div className="space-y-4 max-w-2xl mx-auto">
               {loading && rankData.length === 0 ? (
-                 [...Array(5)].map((_,i) => <Skeleton key={i} className="h-28 w-full rounded-2xl" />)
+                 [...Array(5)].map((_,i) => <Skeleton key={i} className="h-28 w-full" />)
               ) : (
                 rankData.map((drama, idx) => (
                   <div 
                     key={idx} 
                     onClick={() => openDrama(drama)}
-                    className="group flex gap-4 bg-gray-900/40 p-3 rounded-2xl border border-white/5 hover:bg-gray-800 hover:border-white/10 cursor-pointer transition-all hover:scale-[1.02]"
+                    className="flex gap-4 items-center group cursor-pointer hover:bg-white/5 p-2 rounded-xl transition-colors"
                   >
-                    <div className="relative w-20 h-28 flex-shrink-0">
+                    <span className="text-5xl font-black text-gray-800 w-16 text-center group-hover:text-red-600 transition-colors drop-shadow-sm">
+                      {idx + 1}
+                    </span>
+                    <div className="relative w-28 aspect-video flex-shrink-0 overflow-hidden rounded-lg">
                       <img 
                         src={drama.cover || drama.imageUrl} 
-                        className="w-full h-full object-cover rounded-xl shadow-lg"
+                        className="w-full h-full object-cover"
                         alt={drama.title}
                       />
-                      <div className={`absolute -top-3 -left-3 w-8 h-8 flex items-center justify-center rounded-full font-black text-white shadow-xl border-2 border-[#050505] ${
-                        idx === 0 ? 'bg-gradient-to-br from-yellow-400 to-orange-600' : 
-                        idx === 1 ? 'bg-gradient-to-br from-gray-300 to-gray-500' : 
-                        idx === 2 ? 'bg-gradient-to-br from-orange-600 to-red-700' : 'bg-gray-800 text-gray-400'
-                      }`}>
-                        {idx + 1}
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity">
+                         <Play fill="white" size={24} className="text-white"/>
                       </div>
                     </div>
-                    <div className="flex-1 py-1 flex flex-col justify-center">
-                      <h3 className="font-bold text-lg leading-tight mb-2 group-hover:text-red-400 transition-colors">{drama.title || drama.bookName}</h3>
-                      <div className="flex items-center gap-3 text-xs text-gray-500 mb-2">
-                         <span className="flex items-center gap-1 text-yellow-500 font-bold bg-yellow-500/10 px-2 py-0.5 rounded"><Star size={10} fill="currentColor"/> {drama.score || "N/A"}</span>
-                         <span>{drama.category || "Drama"}</span>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-base text-white truncate">{drama.title || drama.bookName}</h3>
+                      <div className="flex items-center gap-2 text-xs text-gray-400 mt-1">
+                         <span className="bg-white/10 px-1 rounded text-[10px]">{drama.category || "Drama"}</span>
+                         <span className="flex items-center gap-1"><Star size={10} className="text-yellow-500"/> {drama.score || "N/A"}</span>
                       </div>
-                      <p className="text-xs text-gray-600 line-clamp-2">
-                        {drama.introduction || "Drama populer minggu ini."}
-                      </p>
-                    </div>
-                    <div className="flex items-center pr-2 opacity-0 group-hover:opacity-100 transition-opacity -translate-x-2 group-hover:translate-x-0">
-                       <Play size={24} className="text-red-500" fill="currentColor"/>
                     </div>
                   </div>
                 ))
@@ -612,7 +672,7 @@ export default function App() {
       </div>
 
       {/* Modern Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 w-full bg-[#050505]/80 backdrop-blur-xl border-t border-white/5 flex justify-around py-2 z-40 pb-safe">
+      <div className="fixed bottom-0 left-0 w-full bg-[#121212] border-t border-white/10 flex justify-around py-2 z-50 pb-safe">
         {[
           { id: 'home', icon: Home, label: 'Beranda' },
           { id: 'search', icon: Search, label: 'Cari' },
@@ -620,14 +680,14 @@ export default function App() {
         ].map((item) => (
           <button 
             key={item.id}
-            onClick={() => setActiveTab(item.id)}
-            className={`relative flex flex-col items-center gap-1 p-2 rounded-xl transition-all duration-300 ${activeTab === item.id ? 'text-white' : 'text-gray-600 hover:text-gray-400'}`}
+            onClick={() => {
+              setActiveTab(item.id);
+              if(item.id === 'home') setSelectedCategory("Semua");
+            }}
+            className={`relative flex flex-col items-center gap-1 p-2 rounded-xl transition-colors ${activeTab === item.id ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
           >
-            {activeTab === item.id && (
-              <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-8 h-1 bg-gradient-to-r from-red-500 to-purple-600 rounded-b-full shadow-[0_0_10px_rgba(239,68,68,0.5)]"></div>
-            )}
-            <item.icon size={24} className={activeTab === item.id ? 'drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]' : ''} />
-            <span className="text-[10px] font-bold tracking-wide">{item.label}</span>
+            <item.icon size={22} className={activeTab === item.id ? 'drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]' : ''} />
+            <span className="text-[10px] font-medium">{item.label}</span>
           </button>
         ))}
       </div>
