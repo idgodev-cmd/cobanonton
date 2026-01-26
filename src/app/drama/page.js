@@ -16,16 +16,16 @@ async function getDramaData() {
     if (!res.ok) return [];
     const json = await res.json();
     const data = Array.isArray(json?.dassi?.lspee) ? json.dassi.lspee : [];
-    
+
     // Normalize drama data to match anime structure and deduplicate
     const seen = new Set();
     const normalized = [];
-    
+
     for (const item of data) {
       const id = item?.dope;
       if (!id || seen.has(id)) continue;
       seen.add(id);
-      
+
       normalized.push({
         slug: id,
         title: item?.ngrand || "Drama",
@@ -34,7 +34,7 @@ async function getDramaData() {
         status: item?.eext ? `${item.eext} Episode` : "Series",
       });
     }
-    
+
     return normalized;
   } catch (e) {
     return [];
@@ -55,7 +55,7 @@ async function DramaContent() {
 }
 
 export const metadata = {
-  title: "Drama - Xenaflix",
+  title: "Drama - COBANONTON",
   description: "Jelajahi koleksi lengkap drama dengan subtitle Indonesia",
 };
 

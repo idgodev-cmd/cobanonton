@@ -16,7 +16,7 @@ async function getAnimeData() {
     if (!res.ok) return [];
     const json = await res.json();
     const data = Array.isArray(json?.data) ? json.data : [];
-    
+
     // Deduplicate by slug
     const seen = new Set();
     const unique = data.filter((item) => {
@@ -25,7 +25,7 @@ async function getAnimeData() {
       seen.add(key);
       return true;
     });
-    
+
     return unique;
   } catch (e) {
     return [];
@@ -46,7 +46,7 @@ async function AnimeContent() {
 }
 
 export const metadata = {
-  title: "Anime - Xenaflix",
+  title: "Anime - COBANONTON",
   description: "Jelajahi koleksi lengkap anime dengan subtitle Indonesia",
 };
 

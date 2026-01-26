@@ -16,16 +16,16 @@ async function getMovieData() {
     if (!res.ok) return [];
     const json = await res.json();
     const data = Array.isArray(json?.subjectList) ? json.subjectList : [];
-    
+
     // Normalize and deduplicate
     const seen = new Set();
     const normalized = [];
-    
+
     for (const item of data) {
       const id = item?.subjectId;
       if (!id || seen.has(id)) continue;
       seen.add(id);
-      
+
       normalized.push({
         slug: item?.subjectId,
         title: item?.title || "Movie",
@@ -34,7 +34,7 @@ async function getMovieData() {
         status: item?.imdbRatingValue ? `⭐ ${item.imdbRatingValue}` : "Movie",
       });
     }
-    
+
     return normalized;
   } catch (e) {
     return [];
@@ -55,23 +55,23 @@ async function MovieContent() {
 }
 
 export const metadata = {
-  title: "Movie - Xenaflix",
+  title: "Movie - COBANONTON",
   description: "Jelajahi koleksi lengkap movie dengan subtitle Indonesia",
 };
 
 export default function MoviePage() {
   return (
-    <>
-      <Hero
-        title="Movie Terbaru"
-        subtitle="Nikmati koleksi movie dengan subtitle Indonesia"
-      />
+    <div className="py-4">
+      <Hero />
+      <Suspense fallback={
+        <>
+          <FeaturedSkeleton />
+          <TrendingSkeleton />
+        </>
+      }>
+        <MovieContent />
+      </Suspense>
       <Categories />
-      <div className="space-y-8">
-        <Suspense fallback={<FeaturedSkeleton />}>
-          <MovieContent />
-        </Suspense>
-      </div>
-    </>
+    </div>
   );
 }
