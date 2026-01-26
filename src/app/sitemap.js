@@ -12,52 +12,52 @@ export default function sitemap() {
     },
     // Main sections
     {
-      url: `${base}/anime`,
+      url: `${baseUrl}/anime`,
       lastModified: currentDate,
       changeFrequency: "daily",
       priority: 0.9,
     },
     {
-      url: `${base}/drama`,
+      url: `${baseUrl}/drama`,
       lastModified: currentDate,
       changeFrequency: "daily",
       priority: 0.9,
     },
     {
-      url: `${base}/movie`,
+      url: `${baseUrl}/movie`,
       lastModified: currentDate,
       changeFrequency: "daily",
       priority: 0.9,
     },
     // List pages
     {
-      url: `${base}/anime/list`,
+      url: `${baseUrl}/anime/list`,
       lastModified: currentDate,
       changeFrequency: "daily",
       priority: 0.8,
     },
     {
-      url: `${base}/drama/list`,
+      url: `${baseUrl}/drama/list`,
       lastModified: currentDate,
       changeFrequency: "daily",
       priority: 0.8,
     },
     {
-      url: `${base}/movie/list`,
+      url: `${baseUrl}/movie/list`,
       lastModified: currentDate,
       changeFrequency: "daily",
       priority: 0.8,
     },
     // Search page
     {
-      url: `${base}/search`,
+      url: `${baseUrl}/search`,
       lastModified: currentDate,
       changeFrequency: "weekly",
       priority: 0.7,
     },
     // Library
     {
-      url: `${base}/library`,
+      url: `${baseUrl}/library`,
       lastModified: currentDate,
       changeFrequency: "weekly",
       priority: 0.6,
