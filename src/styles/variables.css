@@ -1,0 +1,15 @@
+:root {
+  --primary-color: #e50914; /* Netflix Red */
+  --secondary-color: #ffffff;
+  --background-color: #141414;
+  --card-background: #181818;
+  --text-primary: #ffffff;
+  --text-secondary: #b3b3b3;
+  --overlay-color: rgba(0, 0, 0, 0.5);
+  --font-family: 'Inter', sans-serif;
+  --transition-speed: 0.3s;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 2rem;
+  --border-radius: 4px;
+}
