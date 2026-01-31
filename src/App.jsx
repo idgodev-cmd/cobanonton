@@ -217,7 +217,16 @@ function DramaStreamApp() {
   // Maps Zeldvorik response items to our internal schema
   const normalizeDrama = (item) => {
     if (!item) return null;
+
+    // Normalize episodes if they exist in various formats
+    let eps = item.episodes || [];
+    if (!eps.length && item.seasons) {
+      eps = item.seasons.flatMap(s => s.episodes || []);
+    }
+
     return {
+      // Keep original data first so we can override
+      ...item,
       id: item.detailPath || item.endpoint || item.cur_url, // Unique ID for detail fetch
       title: item.title,
       poster: item.poster || item.img || item.image,
@@ -226,9 +235,9 @@ function DramaStreamApp() {
       year: item.year,
       // For details
       description: item.description || "Sinopsis belum tersedia.",
-      episodes: item.episodes || [],
-      seasons: item.seasons || [],
-      ...item
+      // Override episodes with our normalized list
+      episodes: eps,
+      seasons: item.seasons || []
     };
   };
 
@@ -398,25 +407,26 @@ function DramaStreamApp() {
 
     try {
       const res = await api.fetchDetail(id);
-      if (res.data) {
-        const detail = normalizeDrama(res.data);
+
+      // Handle response structure variations
+      const rawData = res.data || res;
+      if (rawData) {
+        const detail = normalizeDrama(rawData);
         setDramaDetail(detail);
 
         // Extract chapters/episodes
-        let eps = [];
-        if (detail.episodes) {
-          eps = detail.episodes;
-        } else if (detail.seasons) {
-          // Flatten seasons
-          eps = detail.seasons.flatMap(s => s.episodes);
-        }
+        let eps = detail.episodes || [];
+
+        // Zeldvorik sometimes returns episodes in 'chapters' or 'list_episode'
+        if (eps.length === 0 && rawData.chapters) eps = rawData.chapters;
+        if (eps.length === 0 && rawData.list_episode) eps = rawData.list_episode;
 
         // Normalize episodes structure
         const normalizedChapters = eps.map((ep, idx) => ({
-          id: `ep_${idx}`, // temporary id
+          id: ep.id || `ep_${idx}`,
           index: idx + 1,
           title: ep.title || `Episode ${idx + 1}`,
-          playerUrl: ep.playerUrl,
+          playerUrl: ep.playerUrl || ep.url || ep.link || ep.stream_url, // Try various fields
           ...ep
         }));
 
@@ -460,9 +470,12 @@ function DramaStreamApp() {
 
       if (targetUrl) {
         setVideoUrl(targetUrl);
-        // Simple heuristic to check if it's an iframe embed or direct video
-        // Zeldvorik usually sends /embed/ or .html for iframes, or .mp4/.m3u8 for video
-        const isEmbed = targetUrl.includes('embed') || !targetUrl.match(/\.(mp4|m3u8)$/i);
+        // Robust check for iframes:
+        // 1. Zeldvorik player.php is a PAGE, so it must be an iframe.
+        // 2. /embed/ URLs are iframes.
+        // 3. .html URLs are iframes.
+        // 4. If it doesn't end in .mp4/.m3u8, default to iframe.
+        const isEmbed = targetUrl.includes('player.php') || targetUrl.includes('embed') || targetUrl.includes('.html') || !targetUrl.match(/\.(mp4|m3u8)(\?.*)?$/i);
         setIsVideoIframe(isEmbed);
       } else {
         setError(`Link episode tidak ditemukan.`);
@@ -788,6 +801,7 @@ function DramaStreamApp() {
                 className="w-full h-full relative z-10"
                 frameBorder="0"
                 allowFullScreen
+                sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               ></iframe>
             ) : (
