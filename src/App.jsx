@@ -667,6 +667,16 @@ function DramaStreamApp() {
     return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
   }, []);
 
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setDeferredPrompt(null);
+      setShowInstallBanner(false);
+    }
+  };
+
   // --- UI RENDER ---
 
   if (currentView === 'player') {
@@ -1078,6 +1088,27 @@ function DramaStreamApp() {
           </div>
         )}
       </div>
+
+      {/* PWA INSTALL PROMPT (Bento Style) */}
+      {showInstallBanner && (
+        <div className="fixed bottom-20 left-4 right-4 z-[55] animate-in slide-in-from-bottom-10 fade-in duration-500">
+          <div className="bg-[#16161A]/90 backdrop-blur-xl border border-white/10 p-4 rounded-2xl shadow-2xl flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-600 to-red-900 flex items-center justify-center shadow-lg">
+                <Tv size={20} className="text-white" />
+              </div>
+              <div>
+                <h4 className="text-white font-bold text-sm leading-tight">Install App</h4>
+                <p className="text-[#A1A1AA] text-[10px] font-medium">Akses lebih cepat & hemat kuota</p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => { setShowInstallBanner(false); localStorage.setItem('pwa_dismissed', 'true'); }} className="p-2 rounded-full hover:bg-white/10 text-[#A1A1AA] hover:text-white transition-colors"><X size={18} /></button>
+              <button onClick={handleInstallClick} className="bg-white text-black px-4 py-2 rounded-xl text-xs font-bold hover:bg-gray-200 transition-colors shadow-lg active:scale-95">Install</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* BOTTOM NAVBAR */}
       <div className="fixed bottom-0 left-0 w-full bg-[#0E0E10]/95 backdrop-blur-md border-t border-[#242428] flex justify-around py-3 z-50 pb-safe">
