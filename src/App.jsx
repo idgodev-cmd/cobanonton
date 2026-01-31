@@ -933,8 +933,8 @@ function DramaStreamApp() {
       <div className={`fixed top-0 left-0 w-full z-40 transition-all duration-500 px-4 py-3 flex items-center justify-between ${scrolled ? 'bg-[#0E0E10]/95 backdrop-blur-md border-b border-[#242428]' : 'bg-gradient-to-b from-black/90 to-transparent'}`}>
         <div className="flex items-center gap-6">
           <div className="cursor-pointer block" onClick={() => setActiveTab('home')}>
-            <div className="flex items-center gap-1">
-              <Tv size={22} className={THEME.accent} strokeWidth={2.5} />
+            <div className="flex items-center gap-2">
+              <img src="/pwa-192x192.png" alt="Logo" className="w-8 h-8 rounded-lg shadow-red-900/20 shadow-lg" />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-600 to-red-500 font-black text-lg tracking-tighter">COBANONTON</span>
             </div>
           </div>
