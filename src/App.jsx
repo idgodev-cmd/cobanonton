@@ -5,12 +5,16 @@ import Navbar from './components/layout/Navbar';
 import Home from './pages/Home';
 import Search from './pages/Search';
 import Detail from './pages/Detail';
+import InstallPrompt from './components/pwa/InstallPrompt';
+import Onboarding from './components/pwa/Onboarding';
 
 function App() {
   return (
     <HelmetProvider>
       <Router>
         <div className="app">
+          <InstallPrompt />
+          <Onboarding />
           <Navbar />
           <main>
             <Routes>
