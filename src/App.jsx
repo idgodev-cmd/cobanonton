@@ -763,20 +763,26 @@ function DramaStreamApp() {
           </div>
         )}
 
-        <div className={`absolute top-0 left-0 w-full p-4 flex items-center justify-between bg-gradient-to-b from-black/90 to-transparent z-50 transition-opacity duration-300 ${!showControls && 'opacity-0'}`}>
-          <button onClick={() => setCurrentView('detail')} className="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 backdrop-blur-md text-white hover:bg-white/20"><ChevronLeft size={24} /></button>
-          <div className="text-white/90 text-sm font-bold tracking-wider drop-shadow-md flex flex-col items-center">
-            <span>Eps {currentIdx + 1}</span>
-            {sleepTimer && <span className="text-[10px] text-red-400 flex items-center gap-1"><Clock size={10} /> {sleepTimer}m</span>}
-          </div>
-          <div className="flex gap-3">
-            <button onClick={toggleSleepTimer} className={`w-10 h-10 rounded-full flex items-center justify-center backdrop-blur-md transition-colors ${sleepTimer ? 'bg-red-600 text-white' : 'bg-white/10 text-white'}`}><Moon size={18} /></button>
-            <button onClick={() => setIsLightsOff(!isLightsOff)} className={`w-10 h-10 rounded-full flex items-center justify-center backdrop-blur-md transition-colors ${isLightsOff ? 'bg-yellow-500 text-black' : 'bg-white/10 text-white'}`}><Zap size={18} fill={isLightsOff ? "currentColor" : "none"} /></button>
-          </div>
+        <div className={`absolute top-0 left-0 w-full p-4 flex items-center justify-between bg-gradient-to-b from-black/90 to-transparent z-50 transition-opacity duration-300 pointer-events-none`}>
+          <button onClick={() => setCurrentView('detail')} className="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 backdrop-blur-md text-white hover:bg-white/20 pointer-events-auto"><ChevronLeft size={24} /></button>
+
+          {/* Custom Header info only for native player */}
+          {!isVideoIframe && (
+            <>
+              <div className="text-white/90 text-sm font-bold tracking-wider drop-shadow-md flex flex-col items-center pointer-events-auto">
+                <span>Eps {currentIdx + 1}</span>
+                {sleepTimer && <span className="text-[10px] text-red-400 flex items-center gap-1"><Clock size={10} /> {sleepTimer}m</span>}
+              </div>
+              <div className="flex gap-3 pointer-events-auto">
+                <button onClick={toggleSleepTimer} className={`w-10 h-10 rounded-full flex items-center justify-center backdrop-blur-md transition-colors ${sleepTimer ? 'bg-red-600 text-white' : 'bg-white/10 text-white'}`}><Moon size={18} /></button>
+                <button onClick={() => setIsLightsOff(!isLightsOff)} className={`w-10 h-10 rounded-full flex items-center justify-center backdrop-blur-md transition-colors ${isLightsOff ? 'bg-yellow-500 text-black' : 'bg-white/10 text-white'}`}><Zap size={18} fill={isLightsOff ? "currentColor" : "none"} /></button>
+              </div>
+            </>
+          )}
         </div>
 
         <div className="absolute inset-0 flex items-center justify-center bg-black z-0"
-          onClick={() => setShowControls(!showControls)}
+          onClick={() => !isVideoIframe && setShowControls(!showControls)}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}>
@@ -801,8 +807,9 @@ function DramaStreamApp() {
                 className="w-full h-full relative z-10"
                 frameBorder="0"
                 allowFullScreen
-                sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                sandbox="allow-scripts allow-same-origin allow-presentation"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                referrerPolicy="origin"
               ></iframe>
             ) : (
               <video
@@ -818,40 +825,43 @@ function DramaStreamApp() {
           )}
         </div>
 
-        <div className={`absolute bottom-0 left-0 w-full bg-gradient-to-t from-black via-black/80 to-transparent p-4 pb-10 z-50 transition-transform duration-300 ${!showControls ? 'translate-y-full' : 'translate-y-0'}`}>
-          {/* Native controls for our custom video player only */}
-          {videoRef.current && !isVideoIframe && (
-            <div className="flex items-center justify-between text-white mb-6 px-2">
-              <div className="flex gap-4 items-center">
-                <button onClick={(e) => { e.stopPropagation(); if (videoRef.current.paused) videoRef.current.play(); else videoRef.current.pause(); }}>
-                  {videoRef.current?.paused ? <Play fill="currentColor" size={28} /> : <div className="w-6 h-6 bg-white rounded-sm"></div>}
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const speeds = [1, 1.25, 1.5, 2];
-                    const nextIdx = (speeds.indexOf(playbackSpeed) + 1) % speeds.length;
-                    const nextSpeed = speeds[nextIdx];
-                    videoRef.current.playbackRate = nextSpeed;
-                    setPlaybackSpeed(nextSpeed);
-                  }}
-                  className="text-xs font-bold border border-white/30 px-2.5 py-1 rounded hover:bg-white/20"
-                >
-                  {playbackSpeed}x
-                </button>
+        {/* Custom Controls Bar - HIDDEN for iframe to avoid blocking native controls */}
+        {!isVideoIframe && (
+          <div className={`absolute bottom-0 left-0 w-full bg-gradient-to-t from-black via-black/80 to-transparent p-4 pb-10 z-50 transition-transform duration-300 ${!showControls ? 'translate-y-full' : 'translate-y-0'}`}>
+            {/* Native controls for our custom video player only */}
+            {videoRef.current && !isVideoIframe && (
+              <div className="flex items-center justify-between text-white mb-6 px-2">
+                <div className="flex gap-4 items-center">
+                  <button onClick={(e) => { e.stopPropagation(); if (videoRef.current.paused) videoRef.current.play(); else videoRef.current.pause(); }}>
+                    {videoRef.current?.paused ? <Play fill="currentColor" size={28} /> : <div className="w-6 h-6 bg-white rounded-sm"></div>}
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const speeds = [1, 1.25, 1.5, 2];
+                      const nextIdx = (speeds.indexOf(playbackSpeed) + 1) % speeds.length;
+                      const nextSpeed = speeds[nextIdx];
+                      videoRef.current.playbackRate = nextSpeed;
+                      setPlaybackSpeed(nextSpeed);
+                    }}
+                    className="text-xs font-bold border border-white/30 px-2.5 py-1 rounded hover:bg-white/20"
+                  >
+                    {playbackSpeed}x
+                  </button>
+                </div>
+                <div className="flex gap-6 text-xs text-gray-400 font-medium">
+                  <button onClick={(e) => { e.stopPropagation(); videoRef.current.currentTime -= 10; }} className="flex items-center gap-1 hover:text-white"><Rewind size={14} /> -10s</button>
+                  <button onClick={(e) => { e.stopPropagation(); videoRef.current.currentTime += 10; }} className="flex items-center gap-1 hover:text-white">+10s <FastForward size={14} /></button>
+                </div>
               </div>
-              <div className="flex gap-6 text-xs text-gray-400 font-medium">
-                <button onClick={(e) => { e.stopPropagation(); videoRef.current.currentTime -= 10; }} className="flex items-center gap-1 hover:text-white"><Rewind size={14} /> -10s</button>
-                <button onClick={(e) => { e.stopPropagation(); videoRef.current.currentTime += 10; }} className="flex items-center gap-1 hover:text-white">+10s <FastForward size={14} /></button>
-              </div>
-            </div>
-          )}
+            )}
 
-          <div className={`flex items-center justify-between gap-4 ${isVideoIframe ? 'opacity-80' : ''}`}>
-            <button disabled={!hasPrev} onClick={() => hasPrev && playEpisode(chapters[currentIdx - 1], currentIdx - 1)} className={`flex-1 py-3 rounded-lg flex items-center justify-center gap-2 text-sm font-bold transition-all ${!hasPrev ? 'bg-white/10 text-gray-500 cursor-not-allowed' : 'bg-white/20 text-white hover:bg-white/30 backdrop-blur-sm'}`}><SkipBack size={18} /> Prev</button>
-            <button disabled={!hasNext} onClick={() => hasNext && playEpisode(chapters[currentIdx + 1], currentIdx + 1)} className={`flex-1 py-3 rounded-lg flex items-center justify-center gap-2 text-sm font-bold transition-all ${!hasNext ? 'bg-white/10 text-gray-500 cursor-not-allowed' : 'bg-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-900/30'}`}>Next <SkipForward size={18} /></button>
+            <div className={`flex items-center justify-between gap-4 ${isVideoIframe ? 'opacity-80' : ''}`}>
+              <button disabled={!hasPrev} onClick={() => hasPrev && playEpisode(chapters[currentIdx - 1], currentIdx - 1)} className={`flex-1 py-3 rounded-lg flex items-center justify-center gap-2 text-sm font-bold transition-all ${!hasPrev ? 'bg-white/10 text-gray-500 cursor-not-allowed' : 'bg-white/20 text-white hover:bg-white/30 backdrop-blur-sm'}`}><SkipBack size={18} /> Prev</button>
+              <button disabled={!hasNext} onClick={() => hasNext && playEpisode(chapters[currentIdx + 1], currentIdx + 1)} className={`flex-1 py-3 rounded-lg flex items-center justify-center gap-2 text-sm font-bold transition-all ${!hasNext ? 'bg-white/10 text-gray-500 cursor-not-allowed' : 'bg-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-900/30'}`}>Next <SkipForward size={18} /></button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     );
   }
