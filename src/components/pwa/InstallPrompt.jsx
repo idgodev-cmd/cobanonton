@@ -34,36 +34,50 @@ export default function InstallPrompt() {
     if (!isVisible) return null;
 
     return (
-        <div className="fixed bottom-4 left-4 right-4 z-50 md:left-auto md:right-4 md:w-96 bg-slate-800 border border-slate-700 p-4 rounded-xl shadow-2xl animate-in slide-in-from-bottom duration-300">
-            <div className="flex items-start justify-between">
-                <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-white mb-1">Install App</h3>
-                    <p className="text-slate-300 text-sm mb-4">
-                        Install Cobanonton for a better experience, offline access, and faster loading.
-                    </p>
-                    <div className="flex gap-3">
-                        <button
-                            onClick={handleInstallClick}
-                            className="flex items-center gap-2 bg-primary px-4 py-2 rounded-lg font-medium text-white hover:bg-primary/90 transition-colors"
-                            style={{ backgroundColor: '#e50914' }} // Netflix red-ish
-                        >
-                            <Download size={18} />
-                            Install Now
-                        </button>
-                        <button
-                            onClick={() => setIsVisible(false)}
-                            className="px-4 py-2 rounded-lg font-medium text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
-                        >
-                            Maybe Later
-                        </button>
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+            <div
+                className="w-full max-w-sm bg-slate-900/90 backdrop-blur-xl border border-white/10 p-6 rounded-2xl shadow-2xl animate-in slide-in-from-bottom-10 zoom-in-95 duration-300 relative overflow-hidden group"
+            >
+                {/* Glow effects */}
+                <div className="absolute -top-10 -right-10 w-32 h-32 bg-primary/20 rounded-full blur-3xl group-hover:bg-primary/30 transition-colors duration-500" />
+                <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl group-hover:bg-blue-500/20 transition-colors duration-500" />
+
+                <div className="relative z-10">
+                    <button
+                        onClick={() => setIsVisible(false)}
+                        className="absolute top-0 right-0 p-1 text-slate-400 hover:text-white transition-colors bg-slate-800/50 rounded-full hover:bg-slate-700"
+                    >
+                        <X size={18} />
+                    </button>
+
+                    <div className="flex flex-col items-center text-center">
+                        <div className="w-16 h-16 bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl flex items-center justify-center mb-4 shadow-lg border border-white/5 mx-auto">
+                            <img src="/pwa-192x192.png" alt="Logo" className="w-10 h-10 object-contain drop-shadow-md" />
+                        </div>
+
+                        <h3 className="text-xl font-bold text-white mb-2">Install Cobanonton</h3>
+                        <p className="text-slate-300 text-sm mb-6 leading-relaxed">
+                            Get the best streaming experience with our dedicated app. Watch offline, smoother playback, and instant access.
+                        </p>
+
+                        <div className="flex flex-col gap-3 w-full">
+                            <button
+                                onClick={handleInstallClick}
+                                className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-primary to-rose-600 px-4 py-3.5 rounded-xl font-bold text-white shadow-lg shadow-primary/25 hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300"
+                                style={{ backgroundImage: 'linear-gradient(to right, #e50914, #ff4b5c)' }}
+                            >
+                                <Download size={20} />
+                                Install App
+                            </button>
+                            <button
+                                onClick={() => setIsVisible(false)}
+                                className="w-full px-4 py-3 rounded-xl font-medium text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors"
+                            >
+                                Not Now
+                            </button>
+                        </div>
                     </div>
                 </div>
-                <button
-                    onClick={() => setIsVisible(false)}
-                    className="text-slate-400 hover:text-white"
-                >
-                    <X size={20} />
-                </button>
             </div>
         </div>
     );

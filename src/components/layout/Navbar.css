@@ -1,27 +1,33 @@
 .navbar {
-    background-color: rgba(0, 0, 0, 0.9);
-    padding: 1rem 0;
+    background-color: rgba(15, 23, 42, 0.8);
+    padding: 0.75rem 0;
     position: sticky;
     top: 0;
-    z-index: 1000;
-    backdrop-filter: blur(10px);
-    border-bottom: 1px solid #333;
+    z-index: 40;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .navbar-content {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    padding: 0 1rem;
 }
 
 .logo {
     font-size: 1.5rem;
-    font-weight: bold;
-    color: var(--text-primary);
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: -0.025em;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .text-primary {
-    color: var(--primary-color);
+    color: #e50914;
 }
 
 .desktop-menu {
@@ -29,52 +35,69 @@
 }
 
 .nav-link {
-    margin-right: 1.5rem;
-    color: var(--text-secondary);
+    margin-right: 2rem;
+    color: #94a3b8;
     font-weight: 500;
+    transition: color 0.2s;
+    font-size: 0.95rem;
 }
 
 .nav-link:hover {
-    color: var(--text-primary);
+    color: #fff;
 }
 
 .search-form {
     display: flex;
     align-items: center;
-    background-color: var(--card-background);
-    border-radius: 4px;
-    padding: 0.25rem 0.5rem;
-    border: 1px solid #333;
+    background-color: rgba(30, 41, 59, 0.5);
+    border-radius: 9999px;
+    padding: 0.35rem 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.2s;
+}
+
+.search-form:focus-within {
+    background-color: rgba(30, 41, 59, 0.8);
+    border-color: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 0 0 2px rgba(229, 9, 20, 0.1);
 }
 
 .search-input {
     background: transparent;
     border: none;
-    color: var(--text-primary);
-    padding: 0.5rem;
+    color: #fff;
+    padding: 0.25rem 0.5rem;
     outline: none;
-    width: 150px;
+    width: 140px;
+    font-size: 0.9rem;
+}
+
+.search-input::placeholder {
+    color: #64748b;
 }
 
 .search-btn {
     background: transparent;
     border: none;
-    color: var(--text-secondary);
+    color: #64748b;
     cursor: pointer;
     display: flex;
     align-items: center;
+    transition: color 0.2s;
 }
 
 .search-btn:hover {
-    color: var(--text-primary);
+    color: #fff;
 }
 
 .mobile-toggle {
     display: block;
     background: transparent;
     border: none;
-    color: var(--text-primary);
+    color: #fff;
     cursor: pointer;
+    padding: 0.5rem;
+    margin-left: 0.5rem;
 }
 
 .mobile-menu {
@@ -82,18 +105,36 @@
     top: 100%;
     left: 0;
     right: 0;
-    background-color: #000;
+    background-color: rgba(15, 23, 42, 0.95);
     padding: 1rem;
     display: flex;
     flex-direction: column;
-    border-bottom: 1px solid #333;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .mobile-link {
-    padding: 0.75rem 0;
-    color: var(--text-secondary);
+    padding: 1rem;
+    color: #94a3b8;
     font-size: 1.1rem;
-    border-bottom: 1px solid #222;
+    font-weight: 500;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    transition: all 0.2s;
+    border-radius: 8px;
 }
 
 .mobile-link:last-child {
@@ -101,17 +142,43 @@
 }
 
 .mobile-link:hover {
-    color: var(--primary-color);
+    color: #fff;
+    background-color: rgba(255, 255, 255, 0.05);
+    padding-left: 1.5rem;
 }
 
 @media (min-width: 768px) {
+    .navbar {
+        padding: 1rem 0;
+    }
+
     .desktop-menu {
         display: flex;
-        margin-left: 2rem;
+        margin-left: 3rem;
+        gap: 0.5rem;
         flex: 1;
+    }
+
+    .nav-link {
+        margin-right: 0.5rem;
+        padding: 0.5rem 1rem;
+        border-radius: 9999px;
+    }
+
+    .nav-link:hover {
+        background-color: rgba(255, 255, 255, 0.05);
     }
 
     .mobile-toggle {
         display: none;
+    }
+
+    .search-input {
+        width: 200px;
+        transition: width 0.3s;
+    }
+
+    .search-input:focus {
+        width: 260px;
     }
 }
