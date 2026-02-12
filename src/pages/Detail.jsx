@@ -71,7 +71,8 @@ const Detail = () => {
                         className="video-player"
                         allowFullScreen
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        sandbox="allow-forms allow-scripts allow-same-origin allow-presentation"
+                        sandbox="allow-forms allow-scripts allow-same-origin allow-presentation allow-popups allow-downloads allow-modals allow-top-navigation-by-user-activation"
+                        referrerPolicy="no-referrer"
                     ></iframe>
                 </div>
 

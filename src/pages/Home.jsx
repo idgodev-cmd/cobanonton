@@ -87,7 +87,9 @@ const Home = () => {
 
     // Logic to determine which sections to show based on category
     const showAll = !category;
-    const showDrama = category === 'drama';
+    const showDramaBox = category === 'dramabox';
+    const showReelShort = category === 'reelshort';
+    const showNetShort = category === 'netshort';
     const showAnime = category === 'anime';
 
     return (
@@ -96,41 +98,41 @@ const Home = () => {
             {/* Only show Hero on main home or if desired */}
             <HeroSlider />
 
-            <Section
-                title="Trending Now"
-                fetcher={api.fetchTrending}
-                visible={showAll}
-            />
+            {(showAll || showDramaBox) && (
+                <Section
+                    title="DramaBox Trending"
+                    fetcher={api.fetchDramaBox}
+                    visible={true}
+                />
+            )}
 
-            <Section
-                title="Indonesian Movies"
-                fetcher={api.fetchIndonesianMovies}
-                visible={showAll}
-            />
+            {(showAll || showReelShort) && (
+                <Section
+                    title="ReelShort"
+                    fetcher={api.fetchReelShort}
+                    visible={true}
+                />
+            )}
 
-            {(showAll || showDrama) && (
-                <>
-                    <Section
-                        title="Indonesian Drama"
-                        fetcher={api.fetchIndonesianDrama}
-                        visible={true}
-                    />
-                    <Section
-                        title="K-Drama"
-                        fetcher={api.fetchKDrama}
-                        visible={true}
-                    />
-                    <Section
-                        title="Short TV"
-                        fetcher={api.fetchShortTV}
-                        visible={true}
-                    />
-                </>
+            {(showAll || showNetShort) && (
+                <Section
+                    title="NetShort"
+                    fetcher={api.fetchNetShort}
+                    visible={true}
+                />
+            )}
+
+            {showAll && (
+                <Section
+                    title="FlickReels"
+                    fetcher={api.fetchFlickReels}
+                    visible={true}
+                />
             )}
 
             {(showAll || showAnime) && (
                 <Section
-                    title="Anime"
+                    title="Anime Terbaru"
                     fetcher={api.fetchAnime}
                     visible={true}
                 />

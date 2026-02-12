@@ -6,7 +6,7 @@ import {
   Heart, Moon, Clock, FastForward, Rewind, Volume2, Sun, Award, HandMetal,
   Compass, Globe, WifiOff, Shuffle, Loader
 } from 'lucide-react';
-import api from './services/api';
+import api, { getDebugLog, clearDebugLog } from './services/api';
 
 // --- ERROR BOUNDARY COMPONENT ---
 class ErrorBoundary extends React.Component {
@@ -54,9 +54,14 @@ const THEME = {
   accentBg: "bg-[#E50914]",
 };
 
-// --- CATEGORY LIST (Mapped to API methods vaguely) ---
+// --- CATEGORY LIST ---
 const CATEGORIES = [
-  "Semua", "Indonesian Movie", "Indonesian Drama", "K-Drama", "Short TV", "Anime"
+  "Semua", "Trending", "For You", "Terbaru", "Dub Indo", "VIP",
+  "Romansa", "CEO", "Balas Dendam", "Mafia", "Pembalikan Identitas",
+  "Perselingkuhan", "Serangan Balik", "Cinta Terlarang", "Supranatural",
+  "Sejarah", "Komedi", "Wanita Mandiri", "Gadis Naif",
+  "Cinta Setelah Menikah", "Kekasih Kontrak", "Pria Dominan",
+  "Perjalanan Waktu", "Intrik Keluarga", "Kesempatan Kedua"
 ];
 
 // --- BADGES LIST ---
@@ -203,40 +208,38 @@ function DramaStreamApp() {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
 
+  // Debug State
+  const [showDebug, setShowDebug] = useState(false);
+  const [debugLogs, setDebugLogs] = useState([]);
+  const [debugCopied, setDebugCopied] = useState(false);
+
   // Data States
   const [homeData, setHomeData] = useState([]);
   const [newData, setNewData] = useState([]);
+  const [latestData, setLatestData] = useState([]);
+  const [dubIndoData, setDubIndoData] = useState([]);
+  const [vipData, setVipData] = useState([]);
   const [rankData, setRankData] = useState([]);
   const [exploreData, setExploreData] = useState([]);
   const [searchResults, setSearchResults] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [popularSearches, setPopularSearches] = useState([]);
 
   const heroDrama = homeData.length > 0 ? homeData[0] : null;
 
   // --- HELPER: Normalize Data ---
-  // Maps Zeldvorik response items to our internal schema
+  // Maps API response items to our internal schema
   const normalizeDrama = (item) => {
     if (!item) return null;
 
-    // Normalize episodes if they exist in various formats
-    let eps = item.episodes || [];
-    if (!eps.length && item.seasons) {
-      eps = item.seasons.flatMap(s => s.episodes || []);
-    }
-
+    // If already normalized by api.js, return as is but ensure ID
     return {
-      // Keep original data first so we can override
+      description: "Sinopsis belum tersedia.",
       ...item,
-      id: item.detailPath || item.endpoint || item.cur_url, // Unique ID for detail fetch
-      title: item.title,
-      poster: item.poster || item.img || item.image,
-      genre: item.genre,
+      id: item.id || item.detailPath || item.endpoint || item.cur_url,
+      poster: item.poster || item.img || item.image || "https://via.placeholder.com/300x450?text=No+Image",
       rating: item.rating || item.score || "New",
-      year: item.year,
-      // For details
-      description: item.description || "Sinopsis belum tersedia.",
-      // Override episodes with our normalized list
-      episodes: eps,
+      episodes: item.episodes || [],
       seasons: item.seasons || []
     };
   };
@@ -272,18 +275,32 @@ function DramaStreamApp() {
       setError(null);
 
       try {
-        const [trendingRes, indoMoviesRes] = await Promise.all([
+        const [trendingRes, forYouRes, latestRes, dubIndoRes, vipRes] = await Promise.all([
           api.fetchTrending(1),
-          api.fetchIndonesianMovies(1)
+          api.fetchForYou(1),
+          api.fetchLatest().catch(() => ({ items: [] })),
+          api.fetchDubIndo().catch(() => ({ items: [] })),
+          api.fetchVip().catch(() => ({ items: [] }))
         ]);
 
         if (trendingRes.items) {
           setHomeData(trendingRes.items.map(normalizeDrama));
         }
-
-        if (indoMoviesRes.items) {
-          setNewData(indoMoviesRes.items.map(normalizeDrama));
+        if (forYouRes.items) {
+          setNewData(forYouRes.items.map(normalizeDrama));
         }
+        if (latestRes.items?.length > 0) {
+          setLatestData(latestRes.items.map(normalizeDrama));
+        }
+        if (dubIndoRes.items?.length > 0) {
+          setDubIndoData(dubIndoRes.items.map(normalizeDrama));
+        }
+        if (vipRes.items?.length > 0) {
+          setVipData(vipRes.items.map(normalizeDrama));
+        }
+
+        // Load popular searches for search tab
+        api.fetchPopularSearch().then(ps => setPopularSearches(ps)).catch(() => { });
 
       } catch (err) {
         console.error("Home Load Error", err);
@@ -302,8 +319,7 @@ function DramaStreamApp() {
       if (activeTab === 'explore' && exploreData.length === 0) {
         setLoading(true);
         try {
-          // Initial explore data - mix of different categories potentially
-          const res = await api.fetchIndonesianDrama(1);
+          const res = await api.fetchDramaBox(1);
           if (res.items) {
             setExploreData(res.items.map(normalizeDrama));
             setExplorePage(2);
@@ -328,8 +344,8 @@ function DramaStreamApp() {
       if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) {
         setIsFetchingMore(true);
         try {
-          // Simple logic: keep fetching Indonesian Drama for explore, or rotate
-          const data = await api.fetchIndonesianDrama(explorePage);
+          // Using DramaBox for explore
+          const data = await api.fetchDramaBox(explorePage);
           if (data.items && data.items.length > 0) {
             setExploreData(prev => {
               const combined = [...prev, ...data.items.map(normalizeDrama)];
@@ -351,17 +367,39 @@ function DramaStreamApp() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [activeTab, explorePage, isFetchingMore, loading]);
 
-  // Rank Data - let's use Top Rated or similar if available, or just reuse Trending
+  // Rank Data - fetch multiple pages of trending and sort by rank
   useEffect(() => {
     const loadRank = async () => {
       if (activeTab === 'rank' && rankData.length === 0) {
         setLoading(true);
         try {
-          const res = await api.fetchTrending(1); // Reusing trending for Rank
-          if (res.items) {
-            setRankData(res.items.map(normalizeDrama));
-          }
-        } catch (e) { } finally { setLoading(false); }
+          const [p1, p2, p3] = await Promise.all([
+            api.fetchTrending(1),
+            api.fetchTrending(2),
+            api.fetchForYou(1)
+          ]);
+          const all = [
+            ...(p1.items || []),
+            ...(p2.items || []),
+            ...(p3.items || [])
+          ];
+          // Deduplicate by id
+          const seen = new Set();
+          const unique = all.filter(d => {
+            if (seen.has(d.id)) return false;
+            seen.add(d.id);
+            return true;
+          });
+          // Sort: items with rankVo.sort come first (ascending), then by rating string
+          unique.sort((a, b) => {
+            const aSort = a.rankSort ?? 999;
+            const bSort = b.rankSort ?? 999;
+            return aSort - bSort;
+          });
+          setRankData(unique);
+        } catch (e) {
+          console.error("Rank load error", e);
+        } finally { setLoading(false); }
       }
     };
     if (activeTab === 'rank') loadRank();
@@ -403,30 +441,22 @@ function DramaStreamApp() {
     setDramaDetail(null);
     setChapters([]);
 
-    const id = drama.id || drama.detailPath;
+    // id is brand:actualId
+    const id = drama.id;
 
     try {
       const res = await api.fetchDetail(id);
 
-      // Handle response structure variations
-      const rawData = res.data || res;
-      if (rawData) {
-        const detail = normalizeDrama(rawData);
-        setDramaDetail(detail);
+      if (res) {
+        setDramaDetail(res);
 
-        // Extract chapters/episodes
-        let eps = detail.episodes || [];
-
-        // Zeldvorik sometimes returns episodes in 'chapters' or 'list_episode'
-        if (eps.length === 0 && rawData.chapters) eps = rawData.chapters;
-        if (eps.length === 0 && rawData.list_episode) eps = rawData.list_episode;
-
-        // Normalize episodes structure
+        // Extract and normalize episodes
+        const eps = res.episodes || [];
         const normalizedChapters = eps.map((ep, idx) => ({
           id: ep.id || `ep_${idx}`,
           index: idx + 1,
           title: ep.title || `Episode ${idx + 1}`,
-          playerUrl: ep.playerUrl || ep.url || ep.link || ep.stream_url, // Try various fields
+          playerUrl: ep.url || ep.playerUrl,
           ...ep
         }));
 
@@ -443,6 +473,7 @@ function DramaStreamApp() {
   const playEpisode = async (chapter, index) => {
     if (!selectedDrama) return;
     const dramaId = selectedDrama.id;
+    const [brand] = dramaId.split(':');
 
     // Gamification
     const hour = new Date().getHours();
@@ -466,21 +497,33 @@ function DramaStreamApp() {
     setIsVideoIframe(false);
 
     try {
-      const targetUrl = chapter.playerUrl;
+      let targetUrl = chapter.playerUrl || chapter.url;
+
+      // If no URL found, try re-fetching the episode data
+      if (!targetUrl && selectedDrama?.id) {
+        console.log('No direct URL, attempting re-fetch...');
+        try {
+          const detail = await api.fetchDetail(selectedDrama.id);
+          if (detail?.episodes?.[index]) {
+            targetUrl = detail.episodes[index].url;
+          }
+        } catch (e) {
+          console.warn('Re-fetch failed:', e);
+        }
+      }
 
       if (targetUrl) {
         setVideoUrl(targetUrl);
-        // Robust check for iframes:
-        // 1. Zeldvorik player.php is a PAGE, so it must be an iframe.
-        // 2. /embed/ URLs are iframes.
-        // 3. .html URLs are iframes.
-        // 4. If it doesn't end in .mp4/.m3u8, default to iframe.
-        const isEmbed = targetUrl.includes('player.php') || targetUrl.includes('embed') || targetUrl.includes('.html') || !targetUrl.match(/\.(mp4|m3u8)(\?.*)?$/i);
-        setIsVideoIframe(isEmbed);
+        // Robust video file detection - check anywhere in URL, not just end
+        const isVideoFile = /\.(mp4|m3u8|mkv|webm|mov|avi|ts)/i.test(targetUrl);
+        const isEmbed = targetUrl.includes('player.php') || targetUrl.includes('embed') || targetUrl.includes('.html');
+        // DramaBox URLs are always direct video files, never iframes
+        setIsVideoIframe(isEmbed && !isVideoFile);
       } else {
-        setError(`Link episode tidak ditemukan.`);
+        setError(`Link episode tidak ditemukan. Coba episode lain.`);
       }
     } catch (err) {
+      console.error('Playback error:', err);
       setError("Gagal memuat video.");
     } finally {
       setLoading(false);
@@ -544,22 +587,19 @@ function DramaStreamApp() {
     if (categoryName === "Semua") {
       setActiveTab('home');
     } else {
-      setActiveTab('search'); // Use search view for category for now, or implement category fetch
-
-      // Map category name to API call if possible, else search
+      setActiveTab('search');
       setLoading(true);
       setSearchQuery(categoryName);
       let res;
       try {
-        // Mapping text to API calls
-        if (categoryName === "Indonesian Movie") res = await api.fetchIndonesianMovies(1);
-        else if (categoryName === "Indonesian Drama") res = await api.fetchIndonesianDrama(1);
-        else if (categoryName === "K-Drama") res = await api.fetchKDrama(1);
-        else if (categoryName === "Short TV") res = await api.fetchShortTV(1);
-        else if (categoryName === "Anime") res = await api.fetchAnime(1);
+        if (categoryName === "Trending") res = await api.fetchTrending(1);
+        else if (categoryName === "For You") res = await api.fetchForYou(1);
+        else if (categoryName === "Terbaru") res = await api.fetchLatest();
+        else if (categoryName === "Dub Indo") res = await api.fetchDubIndo();
+        else if (categoryName === "VIP") res = await api.fetchVip();
         else res = await api.search(categoryName);
 
-        if (res.items) {
+        if (res?.items) {
           setSearchResults(res.items.map(normalizeDrama));
         } else {
           setSearchResults([]);
@@ -807,9 +847,9 @@ function DramaStreamApp() {
                 className="w-full h-full relative z-10"
                 frameBorder="0"
                 allowFullScreen
-                sandbox="allow-scripts allow-same-origin allow-presentation"
+                sandbox="allow-scripts allow-same-origin allow-presentation allow-forms allow-popups allow-downloads allow-modals allow-top-navigation-by-user-activation"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-                referrerPolicy="origin"
+                referrerPolicy="no-referrer"
               ></iframe>
             ) : (
               <video
@@ -1004,9 +1044,33 @@ function DramaStreamApp() {
               </section>
               {newData.length > 0 && (
                 <section>
-                  <h2 className="text-sm font-bold text-white mb-3 uppercase tracking-wider">Baru Ditambahkan</h2>
+                  <h2 className="text-sm font-bold text-white mb-3 uppercase tracking-wider">Untukmu</h2>
                   <div className="flex overflow-x-auto gap-3 pb-4 -mx-5 px-5 no-scrollbar">
                     {newData.map((drama, idx) => <DramaCard key={idx} drama={drama} onClick={openDrama} className="w-28 flex-shrink-0" />)}
+                  </div>
+                </section>
+              )}
+              {latestData.length > 0 && (
+                <section>
+                  <h2 className="text-sm font-bold text-white mb-3 uppercase tracking-wider flex items-center gap-2">🆕 Drama Terbaru</h2>
+                  <div className="flex overflow-x-auto gap-3 pb-4 -mx-5 px-5 no-scrollbar">
+                    {latestData.map((drama, idx) => <DramaCard key={idx} drama={drama} onClick={openDrama} className="w-28 flex-shrink-0" />)}
+                  </div>
+                </section>
+              )}
+              {dubIndoData.length > 0 && (
+                <section>
+                  <h2 className="text-sm font-bold text-white mb-3 uppercase tracking-wider flex items-center gap-2">🇮🇩 Dub Indo</h2>
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                    {dubIndoData.slice(0, 10).map((drama, idx) => <DramaCard key={idx} drama={drama} onClick={openDrama} />)}
+                  </div>
+                </section>
+              )}
+              {vipData.length > 0 && (
+                <section>
+                  <h2 className="text-sm font-bold text-white mb-3 uppercase tracking-wider flex items-center gap-2">⭐ VIP Exclusive</h2>
+                  <div className="flex overflow-x-auto gap-3 pb-4 -mx-5 px-5 no-scrollbar">
+                    {vipData.map((drama, idx) => <DramaCard key={idx} drama={drama} onClick={openDrama} className="w-28 flex-shrink-0" />)}
                   </div>
                 </section>
               )}
@@ -1063,21 +1127,38 @@ function DramaStreamApp() {
         {/* RANK TAB */}
         {activeTab === 'rank' && (
           <div className="p-5 min-h-[90vh]">
-            <h2 className="text-2xl font-black text-white mb-1 text-center">TOP 10</h2>
-            <p className="text-center text-[10px] text-[#A1A1AA] mb-8 font-bold tracking-[0.2em] uppercase">Indonesia Hari Ini</p>
-            <div className="space-y-2 max-w-xl mx-auto">
-              {rankData.map((drama, idx) => (
-                <div key={idx} onClick={() => openDrama(drama)} className="flex items-center gap-4 bg-[#16161A] hover:bg-[#242428] p-3 rounded-lg cursor-pointer transition-colors group border border-transparent hover:border-[#333]">
-                  <span className={`text-4xl font-black w-10 text-center ${idx < 3 ? THEME.accent : 'text-[#333]'} tracking-tighter`}>{idx + 1}</span>
-                  <img src={drama.poster} className="w-16 h-20 object-cover rounded-sm" alt={drama.title} />
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-sm text-white truncate mb-1">{drama.title}</h3>
-                    <div className="flex items-center gap-2"><span className="text-[9px] bg-[#242428] px-1.5 py-0.5 rounded text-[#A1A1AA]">{drama.genre}</span><span className="text-[9px] text-[#46d369] font-bold flex items-center gap-0.5"><Star size={8} fill="currentColor" /> {drama.rating}</span></div>
-                  </div>
-                  <PlayCircle size={24} className="text-[#333] group-hover:text-white transition-colors mr-2" />
-                </div>
-              ))}
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-black text-white mb-1 flex items-center justify-center gap-2"><Trophy className="text-yellow-500" size={28} /> TOP CHART</h2>
+              <p className="text-[10px] text-[#A1A1AA] font-bold tracking-[0.2em] uppercase">Drama Terpopuler DramaBox</p>
             </div>
+            {loading && rankData.length === 0 ? (
+              <div className="space-y-3">{[...Array(10)].map((_, i) => <Skeleton key={i} className="h-20 rounded-lg" />)}</div>
+            ) : rankData.length > 0 ? (
+              <div className="space-y-2 max-w-xl mx-auto">
+                {rankData.map((drama, idx) => (
+                  <div key={idx} onClick={() => openDrama(drama)} className={`flex items-center gap-4 p-3 rounded-lg cursor-pointer transition-all group border ${idx < 3 ? 'bg-gradient-to-r from-[#1a1a1a] to-[#16161A] border-yellow-500/20 hover:border-yellow-500/40' : 'bg-[#16161A] hover:bg-[#242428] border-transparent hover:border-[#333]'}`}>
+                    <span className={`text-4xl font-black w-10 text-center tracking-tighter ${idx === 0 ? 'text-yellow-400' : idx === 1 ? 'text-gray-300' : idx === 2 ? 'text-amber-600' : 'text-[#333]'}`}>{idx + 1}</span>
+                    <img src={drama.poster} className="w-16 h-20 object-cover rounded-sm shadow-lg" alt={drama.title} />
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-sm text-white truncate mb-1">{drama.title}</h3>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[9px] bg-[#242428] px-1.5 py-0.5 rounded text-[#A1A1AA]">{drama.genre}</span>
+                        {drama.rating && drama.rating !== 'New' && (
+                          <span className="text-[9px] text-[#46d369] font-bold flex items-center gap-0.5"><Star size={8} fill="currentColor" /> {drama.rating}</span>
+                        )}
+                      </div>
+                    </div>
+                    <PlayCircle size={24} className="text-[#333] group-hover:text-white transition-colors mr-2" />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-20 text-[#A1A1AA]">
+                <Trophy size={48} className="mb-4 opacity-20" />
+                <p className="text-sm mb-4">Gagal memuat ranking.</p>
+                <button onClick={() => { setRankData([]); setActiveTab('rank'); }} className="px-4 py-2 bg-white text-black text-xs font-bold rounded-full">Coba Lagi</button>
+              </div>
+            )}
           </div>
         )}
 
@@ -1130,6 +1211,88 @@ function DramaStreamApp() {
               <button onClick={() => { setShowInstallBanner(false); localStorage.setItem('pwa_dismissed', 'true'); }} className="p-2 rounded-full hover:bg-white/10 text-[#A1A1AA] hover:text-white transition-colors"><X size={18} /></button>
               <button onClick={handleInstallClick} className="bg-white text-black px-4 py-2 rounded-xl text-xs font-bold hover:bg-gray-200 transition-colors shadow-lg active:scale-95">Install</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* DEBUG FLOATING BUTTON */}
+      <button
+        onClick={() => { setShowDebug(true); setDebugLogs(getDebugLog()); }}
+        className="fixed bottom-20 right-4 z-[70] w-10 h-10 rounded-full bg-yellow-500/20 border border-yellow-500/30 flex items-center justify-center text-yellow-500 hover:bg-yellow-500/30 transition-all backdrop-blur-sm"
+        title="Debug Mode"
+      >
+        <Bug size={16} />
+      </button>
+
+      {/* DEBUG PANEL */}
+      {showDebug && (
+        <div className="fixed inset-0 z-[80] bg-black/95 backdrop-blur-xl flex flex-col">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-[#333]">
+            <div className="flex items-center gap-2">
+              <Bug size={18} className="text-yellow-500" />
+              <h3 className="text-white font-bold text-sm">Debug Console</h3>
+              <span className="text-[10px] bg-yellow-500/20 text-yellow-500 px-2 py-0.5 rounded-full font-bold">{debugLogs.length} logs</span>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setDebugLogs(getDebugLog()); }}
+                className="text-[10px] bg-blue-500/20 text-blue-400 px-3 py-1.5 rounded font-bold hover:bg-blue-500/30"
+              >
+                Refresh
+              </button>
+              <button
+                onClick={() => {
+                  const text = debugLogs.map(l => `[${l.time}] [${l.type.toUpperCase()}] ${l.message}${l.data ? ' | ' + l.data : ''}`).join('\n');
+                  navigator.clipboard.writeText(text).then(() => {
+                    setDebugCopied(true);
+                    setTimeout(() => setDebugCopied(false), 2000);
+                  });
+                }}
+                className={`text-[10px] px-3 py-1.5 rounded font-bold transition-all ${debugCopied ? 'bg-green-500/20 text-green-400' : 'bg-white/10 text-white hover:bg-white/20'
+                  }`}
+              >
+                {debugCopied ? '✅ Copied!' : '📋 Copy All'}
+              </button>
+              <button
+                onClick={() => { clearDebugLog(); setDebugLogs([]); }}
+                className="text-[10px] bg-red-500/20 text-red-400 px-3 py-1.5 rounded font-bold hover:bg-red-500/30"
+              >
+                Clear
+              </button>
+              <button onClick={() => setShowDebug(false)} className="p-1.5 rounded bg-[#333] hover:bg-[#444] text-white">
+                <X size={16} />
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto p-3 font-mono text-[11px] space-y-1">
+            {debugLogs.length === 0 ? (
+              <div className="text-center text-[#555] py-20">
+                <Bug size={48} className="mx-auto mb-4 opacity-20" />
+                <p>Belum ada log. Navigasi app untuk mulai log.</p>
+              </div>
+            ) : (
+              debugLogs.map((log, idx) => (
+                <div key={idx} className={`px-2 py-1 rounded ${log.type === 'error' ? 'bg-red-500/10 text-red-400' :
+                    log.type === 'warn' ? 'bg-yellow-500/10 text-yellow-400' :
+                      log.type === 'ok' ? 'bg-green-500/10 text-green-400' :
+                        log.type === 'fetch' ? 'bg-blue-500/10 text-blue-400' :
+                          'bg-white/5 text-[#888]'
+                  }`}>
+                  <span className="text-[#555] mr-2">{log.time}</span>
+                  <span className={`font-bold mr-2 uppercase text-[9px] px-1 py-0.5 rounded ${log.type === 'error' ? 'bg-red-500/20' :
+                      log.type === 'warn' ? 'bg-yellow-500/20' :
+                        log.type === 'ok' ? 'bg-green-500/20' :
+                          log.type === 'fetch' ? 'bg-blue-500/20' :
+                            'bg-white/10'
+                    }`}>{log.type}</span>
+                  {log.message}
+                  {log.data && <span className="text-[#555] ml-1 break-all">| {log.data}</span>}
+                </div>
+              ))
+            )}
+          </div>
+          <div className="px-4 py-2 border-t border-[#333] text-[10px] text-[#555]">
+            Tip: Copy logs lalu kirim ke developer untuk debug
           </div>
         </div>
       )}

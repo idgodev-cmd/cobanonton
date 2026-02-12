@@ -26,7 +26,8 @@ const Navbar = () => {
                 {/* Desktop Menu */}
                 <div className="desktop-menu">
                     <Link to="/" className="nav-link">Home</Link>
-                    <Link to="/?cat=drama" className="nav-link">Drama</Link>
+                    <Link to="/?cat=dramabox" className="nav-link">DramaBox</Link>
+                    <Link to="/?cat=netshort" className="nav-link">NetShort</Link>
                     <Link to="/?cat=anime" className="nav-link">Anime</Link>
                 </div>
 
@@ -53,7 +54,8 @@ const Navbar = () => {
                 {isOpen && (
                     <div className="mobile-menu">
                         <Link to="/" className="mobile-link" onClick={() => setIsOpen(false)}>Home</Link>
-                        <Link to="/?cat=drama" className="mobile-link" onClick={() => setIsOpen(false)}>Drama</Link>
+                        <Link to="/?cat=dramabox" className="mobile-link" onClick={() => setIsOpen(false)}>DramaBox</Link>
+                        <Link to="/?cat=netshort" className="mobile-link" onClick={() => setIsOpen(false)}>NetShort</Link>
                         <Link to="/?cat=anime" className="mobile-link" onClick={() => setIsOpen(false)}>Anime</Link>
                     </div>
                 )}

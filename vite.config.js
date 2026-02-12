@@ -33,7 +33,7 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
         runtimeCaching: [
           {
-            urlPattern: /^https:\/\/zeldvorik\.ru\/api\/.*/i,
+            urlPattern: /^https:\/\/api\.sansekai\.my\.id\/.*/i,
             handler: 'NetworkFirst',
             options: {
               cacheName: 'api-cache',
@@ -50,4 +50,18 @@ export default defineConfig({
       }
     })
   ],
+  server: {
+    proxy: {
+      '/api': {
+        target: 'https://api.sansekai.my.id',
+        changeOrigin: true,
+        secure: true,
+        rewrite: (path) => path,
+        headers: {
+          'Referer': 'https://api.sansekai.my.id/',
+          'Origin': 'https://api.sansekai.my.id'
+        }
+      }
+    }
+  },
 })
