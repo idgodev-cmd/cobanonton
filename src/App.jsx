@@ -6,7 +6,7 @@ import {
   Heart, Moon, Clock, FastForward, Rewind, Volume2, Sun, Award, HandMetal,
   Compass, Globe, WifiOff, Shuffle, Loader
 } from 'lucide-react';
-import api, { getDebugLog, clearDebugLog } from './services/api';
+import api from './services/api';
 
 // --- ERROR BOUNDARY COMPONENT ---
 class ErrorBoundary extends React.Component {
@@ -208,10 +208,6 @@ function DramaStreamApp() {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
 
-  // Debug State
-  const [showDebug, setShowDebug] = useState(false);
-  const [debugLogs, setDebugLogs] = useState([]);
-  const [debugCopied, setDebugCopied] = useState(false);
 
   // Data States
   const [homeData, setHomeData] = useState([]);
@@ -1211,88 +1207,6 @@ function DramaStreamApp() {
               <button onClick={() => { setShowInstallBanner(false); localStorage.setItem('pwa_dismissed', 'true'); }} className="p-2 rounded-full hover:bg-white/10 text-[#A1A1AA] hover:text-white transition-colors"><X size={18} /></button>
               <button onClick={handleInstallClick} className="bg-white text-black px-4 py-2 rounded-xl text-xs font-bold hover:bg-gray-200 transition-colors shadow-lg active:scale-95">Install</button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* DEBUG FLOATING BUTTON */}
-      <button
-        onClick={() => { setShowDebug(true); setDebugLogs(getDebugLog()); }}
-        className="fixed bottom-20 right-4 z-[70] w-10 h-10 rounded-full bg-yellow-500/20 border border-yellow-500/30 flex items-center justify-center text-yellow-500 hover:bg-yellow-500/30 transition-all backdrop-blur-sm"
-        title="Debug Mode"
-      >
-        <Bug size={16} />
-      </button>
-
-      {/* DEBUG PANEL */}
-      {showDebug && (
-        <div className="fixed inset-0 z-[80] bg-black/95 backdrop-blur-xl flex flex-col">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-[#333]">
-            <div className="flex items-center gap-2">
-              <Bug size={18} className="text-yellow-500" />
-              <h3 className="text-white font-bold text-sm">Debug Console</h3>
-              <span className="text-[10px] bg-yellow-500/20 text-yellow-500 px-2 py-0.5 rounded-full font-bold">{debugLogs.length} logs</span>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => { setDebugLogs(getDebugLog()); }}
-                className="text-[10px] bg-blue-500/20 text-blue-400 px-3 py-1.5 rounded font-bold hover:bg-blue-500/30"
-              >
-                Refresh
-              </button>
-              <button
-                onClick={() => {
-                  const text = debugLogs.map(l => `[${l.time}] [${l.type.toUpperCase()}] ${l.message}${l.data ? ' | ' + l.data : ''}`).join('\n');
-                  navigator.clipboard.writeText(text).then(() => {
-                    setDebugCopied(true);
-                    setTimeout(() => setDebugCopied(false), 2000);
-                  });
-                }}
-                className={`text-[10px] px-3 py-1.5 rounded font-bold transition-all ${debugCopied ? 'bg-green-500/20 text-green-400' : 'bg-white/10 text-white hover:bg-white/20'
-                  }`}
-              >
-                {debugCopied ? '✅ Copied!' : '📋 Copy All'}
-              </button>
-              <button
-                onClick={() => { clearDebugLog(); setDebugLogs([]); }}
-                className="text-[10px] bg-red-500/20 text-red-400 px-3 py-1.5 rounded font-bold hover:bg-red-500/30"
-              >
-                Clear
-              </button>
-              <button onClick={() => setShowDebug(false)} className="p-1.5 rounded bg-[#333] hover:bg-[#444] text-white">
-                <X size={16} />
-              </button>
-            </div>
-          </div>
-          <div className="flex-1 overflow-y-auto p-3 font-mono text-[11px] space-y-1">
-            {debugLogs.length === 0 ? (
-              <div className="text-center text-[#555] py-20">
-                <Bug size={48} className="mx-auto mb-4 opacity-20" />
-                <p>Belum ada log. Navigasi app untuk mulai log.</p>
-              </div>
-            ) : (
-              debugLogs.map((log, idx) => (
-                <div key={idx} className={`px-2 py-1 rounded ${log.type === 'error' ? 'bg-red-500/10 text-red-400' :
-                    log.type === 'warn' ? 'bg-yellow-500/10 text-yellow-400' :
-                      log.type === 'ok' ? 'bg-green-500/10 text-green-400' :
-                        log.type === 'fetch' ? 'bg-blue-500/10 text-blue-400' :
-                          'bg-white/5 text-[#888]'
-                  }`}>
-                  <span className="text-[#555] mr-2">{log.time}</span>
-                  <span className={`font-bold mr-2 uppercase text-[9px] px-1 py-0.5 rounded ${log.type === 'error' ? 'bg-red-500/20' :
-                      log.type === 'warn' ? 'bg-yellow-500/20' :
-                        log.type === 'ok' ? 'bg-green-500/20' :
-                          log.type === 'fetch' ? 'bg-blue-500/20' :
-                            'bg-white/10'
-                    }`}>{log.type}</span>
-                  {log.message}
-                  {log.data && <span className="text-[#555] ml-1 break-all">| {log.data}</span>}
-                </div>
-              ))
-            )}
-          </div>
-          <div className="px-4 py-2 border-t border-[#333] text-[10px] text-[#555]">
-            Tip: Copy logs lalu kirim ke developer untuk debug
           </div>
         </div>
       )}
